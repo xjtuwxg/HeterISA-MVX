@@ -172,11 +172,13 @@ int main(int argc, char **argv)
 #endif
 #ifdef __aarch64__
 	struct iovec iov;
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
+	struct user_pt_regs arm64_regs;
+	iov.iov_base = &arm64_regs;
+	iov.iov_len = sizeof(arm64_regs);
+	fprintf(stderr, "%d %d\n", sizeof(arm64_regs), sizeof(regs));
         if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
             FATAL("%s. 3", strerror(errno));
-        syscall_num = arm64_get_sc_args(regs, args);
+        syscall_num = arm64_get_sc_args(arm64_regs, args);
 #endif
 	pre_syscall(syscall_num, args);
 
