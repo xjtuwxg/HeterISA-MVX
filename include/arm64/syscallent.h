@@ -1,0 +1,5 @@
+[ 63] = {3, "read", "int fd", "void *buf", "size_t count"},
+[ 64] = {3, "write", "int fd", "void *buf", "size_t count"},
+[ 56] = {4, "openat", "int dirfd", "char *pathname", "int flags", "mode_t mode"},
+[222] = {6, "mmap", "void *addr", "size_t lenght", "int prot", "int flags", "int fd", "off_t offset"},
+[335] = {0, "endsyscall"},
