@@ -109,7 +109,8 @@ static inline int x86_get_sc_args(struct user_regs_struct regs,
 #endif
 
 #ifdef __aarch64__
-static inline int arm64_get_sc_args(struct user_regs_struct regs,
+//static inline int arm64_get_sc_args(struct user_regs_struct regs,
+static inline int arm64_get_sc_args(struct user_pt_regs regs,
 				    long long args[])
 {
     args[0] = regs.regs[0];  args[1] = regs.regs[1];  args[2] = regs.regs[2];
@@ -175,7 +176,7 @@ int main(int argc, char **argv)
 	struct user_pt_regs arm64_regs;
 	iov.iov_base = &arm64_regs;
 	iov.iov_len = sizeof(arm64_regs);
-	fprintf(stderr, "%d %d\n", sizeof(arm64_regs), sizeof(regs));
+	//fprintf(stderr, "%ld %ld\n", sizeof(arm64_regs), sizeof(regs));
         if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
             FATAL("%s. 3", strerror(errno));
         syscall_num = arm64_get_sc_args(arm64_regs, args);
@@ -212,10 +213,10 @@ int main(int argc, char **argv)
         if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1) {
             fputs(" = ?\n", stderr);
             if (errno == ESRCH)
-                exit(regs.regs[0]); // system call was _exit(2) or similar
+                exit(arm64_regs.regs[0]); // system call was _exit(2) or similar
             FATAL("%s. 3", strerror(errno));
 	}
-	post_syscall(syscall_num, regs.regs[8]);
+	post_syscall(syscall_num, arm64_regs.regs[8]);
 #endif
     }
 }
