@@ -57,11 +57,11 @@ typedef struct _syscall_entry {
 } syscall_entry_t;
 
 static const syscall_entry_t syscalls[] = {
-// syscall entries are from "strace/linux/x86_64/syscallent.h"
+/* syscall entries are from "strace/linux/x86_64/syscallent.h" */
 #ifdef __x86_64__
 #include <x86/syscallent.h>
 #endif
-// syscall entries are from "strace/linux/64/syscallent.h"
+/* syscall entries are from "strace/linux/64/syscallent.h" */
 #ifdef __aarch64__
 #include <arm64/syscallent.h>
 #endif
