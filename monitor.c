@@ -31,13 +31,6 @@
 #define INT	1
 #define UINT	2
 
-#if 0
-struct iovec {
-    void *base;
-    size_t iov_len;
-};
-#endif
-
 typedef struct _args {
     char *arg0;
     char *arg1;
@@ -56,6 +49,7 @@ typedef struct _syscall_entry {
     } sc_arg;
 } syscall_entry_t;
 
+/* define the "sensitive" syscall number, params that we want to intercept */
 static const syscall_entry_t syscalls[] = {
 /* syscall entries are from "strace/linux/x86_64/syscallent.h" */
 #ifdef __x86_64__
@@ -67,12 +61,21 @@ static const syscall_entry_t syscalls[] = {
 #endif
 };
 
+void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
+{
+    char read_param[20] = "Hello World!";
+    char *args = (char *)(regs->regs[1]);
+    fprintf(stderr, "%p --> %s", args, read_param);
+    if (ptrace(PTRACE_POKEDATA, pid, 0, &regs) == -1)
+        FATAL("%s", strerror(errno));
+}
+
 /* @param: syscall num & arguments */
-void pre_syscall(long syscall, long long args[])
+void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs, pid_t pid)
 {
     syscall_entry_t ent = syscalls[syscall];
 
-    // current, we want to print the syscall params
+    /* current, we want to print the syscall params */
     //fprintf(stderr, "[%3ld]\n", syscall);
     if (ent.name != 0) {
 	int nargs = ent.nargs;
@@ -84,6 +87,10 @@ void pre_syscall(long syscall, long long args[])
 	    fprintf(stderr, ", %s: 0x%llx", ent.sc_arg.arg[i], args[i]);
 	}
 	fprintf(stderr, ")");
+	// if the syscall is read, we modify the input
+	if (syscall == 63) {
+	    sync_syscall(syscall, regs, pid);
+	}
     }
 }
 
@@ -109,8 +116,8 @@ static inline int x86_get_sc_args(struct user_regs_struct regs,
 #endif
 
 #ifdef __aarch64__
-//static inline int arm64_get_sc_args(struct user_regs_struct regs,
-static inline int arm64_get_sc_args(struct user_pt_regs regs,
+//static inline int arm64_get_sc_args(struct user_pt_regs regs,
+static inline int arm64_get_sc_args(struct user_regs_struct regs,
 				    long long args[])
 {
     args[0] = regs.regs[0];  args[1] = regs.regs[1];  args[2] = regs.regs[2];
@@ -156,9 +163,9 @@ int main(int argc, char **argv)
     for (;;) {
         /* Enter next system call */
         if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
-            FATAL("%s 1", strerror(errno));
+            FATAL("ptrace_syscall error %s.", strerror(errno));
         if (waitpid(pid, 0, 0) == -1)
-            FATAL("%s 2", strerror(errno));
+            FATAL("waitpid error %s.", strerror(errno));
 
         /* Get system call arguments */
         struct user_regs_struct regs;
@@ -169,37 +176,29 @@ int main(int argc, char **argv)
         if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
             FATAL("%s", strerror(errno));
         syscall_num = x86_get_sc_args(regs, args);
-	//pre_syscall(syscall_num, regs);
 #endif
 #ifdef __aarch64__
 	struct iovec iov;
-	struct user_pt_regs arm64_regs;
-	iov.iov_base = &arm64_regs;
-	iov.iov_len = sizeof(arm64_regs);
-	//fprintf(stderr, "%ld %ld\n", sizeof(arm64_regs), sizeof(regs));
-        if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
-            FATAL("%s. 3", strerror(errno));
-        syscall_num = arm64_get_sc_args(arm64_regs, args);
+	//struct user_pt_regs arm64_regs;
+	iov.iov_base = &regs;
+	iov.iov_len = sizeof(regs);
+        //if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
+        if (ptrace(PTRACE_PEEKUSER, pid, 8, 0) == -1)
+            FATAL("ptrace_getregset error %s.", strerror(errno));
+        syscall_num = arm64_get_sc_args(regs, args);
 #endif
-	pre_syscall(syscall_num, args);
+	pre_syscall(syscall_num, args, &regs, pid);
 
-#if 0
-        long syscall = regs.orig_rax;
 
-        /* Print a representation of the system call */
-        fprintf(stderr, "[%3ld] (%ld, %ld, %ld, %ld, %ld, %ld)",
-                syscall,
-                (long)regs.rdi, (long)regs.rsi, (long)regs.rdx,
-                (long)regs.r10, (long)regs.r8,  (long)regs.r9);
-#endif
         /* Run system call and stop on exit */
         if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
-            FATAL("%s", strerror(errno));
+            FATAL("ptrace_syscall error (retval) %s", strerror(errno));
         if (waitpid(pid, 0, 0) == -1)
-            FATAL("%s", strerror(errno));
+            FATAL("waitpid error (retval) %s", strerror(errno));
 
+
+        /* Get system call result, and print it */
 #ifdef __x86_64__
-        /* Get system call result */
         if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {
             fputs(" = ?\n", stderr);
             if (errno == ESRCH)
@@ -213,10 +212,10 @@ int main(int argc, char **argv)
         if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1) {
             fputs(" = ?\n", stderr);
             if (errno == ESRCH)
-                exit(arm64_regs.regs[0]); // system call was _exit(2) or similar
+                exit(regs.regs[0]); // system call was _exit(2) or similar
             FATAL("%s. 3", strerror(errno));
 	}
-	post_syscall(syscall_num, arm64_regs.regs[8]);
+	post_syscall(syscall_num, regs.regs[8]);
 #endif
     }
 }
