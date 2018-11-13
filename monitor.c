@@ -19,7 +19,10 @@
 #include <linux/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
+
+#ifdef __x86_64__
 #include <sys/reg.h>	// ORIG_RAX
+#endif
 
 #define FATAL(...) \
     do { \
@@ -31,8 +34,9 @@
 #define PRINT(...) \
     do { \
 	fprintf(stdout, "[mvx]: " __VA_ARGS__); \
-	fputc('\n', stdout); \
+	fflush(stdout); \
     } while (0);
+	//fputc('\n', stdout); \
 
 #define PTR	0
 #define INT	1
@@ -76,14 +80,14 @@ union u {
 void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
 {
     //char read_param[20] = "Hello World!";
-    unsigned long mem_loc, reg_loc;
+    unsigned long mem_loc, reg_loc = 0;
     int ret;
 #ifdef __x86_64__
     mem_loc = regs->rsi;
     reg_loc = 8*ORIG_RAX;
 #endif
 #ifdef __aarch64__
-    loc = regs->regs[1];
+    mem_loc = regs->regs[1];
 #endif
     //fprintf(stderr, "[%3ld] %p --> %s\n", syscall, args, read_param);
     //input.val = ptrace(PTRACE_PEEKDATA, pid, regs->rsi, 0);
@@ -92,10 +96,10 @@ void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
     /* Inject input string. */
     memcpy(input.str, "hello", sizeof("hello"));
     ret = ptrace(PTRACE_POKEDATA, pid, mem_loc, input.val);
-    //PRINT("ret: %d", ret);
+    PRINT("ret: %d\n", ret);
     /* Inject getpid syscall */
     ret = ptrace(PTRACE_POKEUSER, pid, reg_loc, SYS_getpid);
-    //PRINT("ret: %d", ret);
+    PRINT("ret: %d\n", ret);
 }
 
 /* @param: syscall num & arguments */
@@ -106,16 +110,16 @@ void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs,
 
     /* current, we want to print the syscall params */
     //fprintf(stderr, "[%3ld]\n", syscall);
-    if (ent.name != 0 && 0) {
+    if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
-	fprintf(stderr, "[%3ld] %s (", syscall, ent.name);
+	PRINT("[%3ld] %s (", syscall, ent.name);
 	if (nargs != 0)
 	    fprintf(stderr, "%s: 0x%llx", ent.sc_arg.arg[0], args[0]);
 	for (i = 1; i < nargs; i++) {
 	    fprintf(stderr, ", %s: 0x%llx", ent.sc_arg.arg[i], args[i]);
 	}
-	fprintf(stderr, ")");
+	fprintf(stderr, ")\n");
 	// if the syscall is read, we modify the input
     }
 }

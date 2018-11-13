@@ -10,7 +10,7 @@ int main()
 	//printf("%s", cmd);
 	//system(cmd);
 
-	printf("\nInput your name: ");
+	printf("\nInput your name: \n");
 	fflush(stdout);
 	scanf("%s", name);
 	printf("pid: %d. test. Hi %s.\n", getpid(), name);
