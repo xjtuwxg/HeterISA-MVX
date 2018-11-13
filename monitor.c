@@ -19,13 +19,20 @@
 #include <linux/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
+#include <sys/reg.h>	// ORIG_RAX
 
 #define FATAL(...) \
     do { \
-        fprintf(stderr, "strace: " __VA_ARGS__); \
+        fprintf(stderr, "[mvx error]: " __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
     } while (0)
+
+#define PRINT(...) \
+    do { \
+	fprintf(stdout, "[mvx]: " __VA_ARGS__); \
+	fputc('\n', stdout); \
+    } while (0);
 
 #define PTR	0
 #define INT	1
@@ -61,23 +68,45 @@ static const syscall_entry_t syscalls[] = {
 #endif
 };
 
+union u {
+    long val;
+    char str[8];
+} input;
+
 void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
 {
-    char read_param[20] = "Hello World!";
-    char *args = (char *)(regs->regs[1]);
-    fprintf(stderr, "%p --> %s", args, read_param);
-    if (ptrace(PTRACE_POKEDATA, pid, 0, &regs) == -1)
-        FATAL("%s", strerror(errno));
+    //char read_param[20] = "Hello World!";
+    unsigned long mem_loc, reg_loc;
+    int ret;
+#ifdef __x86_64__
+    mem_loc = regs->rsi;
+    reg_loc = 8*ORIG_RAX;
+#endif
+#ifdef __aarch64__
+    loc = regs->regs[1];
+#endif
+    //fprintf(stderr, "[%3ld] %p --> %s\n", syscall, args, read_param);
+    //input.val = ptrace(PTRACE_PEEKDATA, pid, regs->rsi, 0);
+    //PRINT("%s\n", input.str);
+    //PRINT("0x%lx", input.val);
+    /* Inject input string. */
+    memcpy(input.str, "hello", sizeof("hello"));
+    ret = ptrace(PTRACE_POKEDATA, pid, mem_loc, input.val);
+    //PRINT("ret: %d", ret);
+    /* Inject getpid syscall */
+    ret = ptrace(PTRACE_POKEUSER, pid, reg_loc, SYS_getpid);
+    //PRINT("ret: %d", ret);
 }
 
 /* @param: syscall num & arguments */
-void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs, pid_t pid)
+void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs,
+		 pid_t pid)
 {
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
     //fprintf(stderr, "[%3ld]\n", syscall);
-    if (ent.name != 0) {
+    if (ent.name != 0 && 0) {
 	int nargs = ent.nargs;
 	int i;
 	fprintf(stderr, "[%3ld] %s (", syscall, ent.name);
@@ -88,9 +117,6 @@ void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs, 
 	}
 	fprintf(stderr, ")");
 	// if the syscall is read, we modify the input
-	if (syscall == 63) {
-	    sync_syscall(syscall, regs, pid);
-	}
     }
 }
 
@@ -99,7 +125,7 @@ void post_syscall(long syscall, long result)
 {
     syscall_entry_t ent = syscalls[syscall];
 
-    if (ent.name != 0) {
+    if (ent.name != 0 && 0) {
         /* Print system call result */
         fprintf(stderr, " = 0x%lx\n", result);
     }
@@ -131,19 +157,6 @@ int main(int argc, char **argv)
     if (argc <= 1)
         FATAL("too few arguments: %d", argc);
 
-#if 0
-    int syscall_num = sizeof(syscalls) / sizeof(syscall_entry_t);
-    printf("%lu, %lu\n", sizeof(syscalls), sizeof(syscall_entry_t));
-    for (int i = 0; i < syscall_num; i++) {
-	if (syscalls[i].nargs == 0) continue;
-	printf("[%3d] syscall %s # params: %d\n",
-	       i, syscalls[i].name, syscalls[i].nargs);
-	for (int j = 0; j < syscalls[i].nargs; j++)
-	    printf("%s, ", syscalls[i].sc_arg.arg[j]);
-	printf("\n");
-    }
-#endif
-
     pid_t pid = fork();
     switch (pid) {
         case -1: /* error */
@@ -174,20 +187,24 @@ int main(int argc, char **argv)
 
 #ifdef __x86_64__
         if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
-            FATAL("%s", strerror(errno));
+            FATAL("ptrace_getregs %s", strerror(errno));
         syscall_num = x86_get_sc_args(regs, args);
 #endif
 #ifdef __aarch64__
 	struct iovec iov;
-	//struct user_pt_regs arm64_regs;
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
-        //if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
-        if (ptrace(PTRACE_PEEKUSER, pid, 8, 0) == -1)
+        if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
             FATAL("ptrace_getregset error %s.", strerror(errno));
         syscall_num = arm64_get_sc_args(regs, args);
 #endif
+	if (syscall_num == -1) break;
 	pre_syscall(syscall_num, args, &regs, pid);
+
+	/* MVX: Sync the syscall (e.g., SYS_read) params for inputs */
+	if ((syscall_num == SYS_read) && (args[0] == 0)) {
+	    sync_syscall(syscall_num, &regs, pid);
+	}
 
 
         /* Run system call and stop on exit */
@@ -195,7 +212,6 @@ int main(int argc, char **argv)
             FATAL("ptrace_syscall error (retval) %s", strerror(errno));
         if (waitpid(pid, 0, 0) == -1)
             FATAL("waitpid error (retval) %s", strerror(errno));
-
 
         /* Get system call result, and print it */
 #ifdef __x86_64__

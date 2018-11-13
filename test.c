@@ -8,7 +8,8 @@ int main()
 	char cmd[512];
 	sprintf(cmd, "cat /proc/%d/maps", getpid());
 	//printf("%s", cmd);
-	system(cmd);
+	//system(cmd);
+
 	printf("\nInput your name: ");
 	fflush(stdout);
 	scanf("%s", name);
