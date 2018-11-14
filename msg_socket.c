@@ -78,8 +78,8 @@ int create_server_socket(void)
 	}
 
 	/* make socket non blocking ?? */
-	if (make_socket_non_blocking(listenfd) == -1)
-		return -1;
+//	if (make_socket_non_blocking(listenfd) == -1)
+//		return -1;
 
 	return listenfd;
 }

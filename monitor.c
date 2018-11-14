@@ -159,9 +159,14 @@ static inline int arm64_get_sc_args(struct user_regs_struct regs,
 }
 #endif
 
+static int sockfd, clientfd;
+
 int main(int argc, char **argv)
 {
-    int sockfd, clientfd;
+    int connfd;
+    SA in_addr;
+    socklen_t in_len = sizeof(in_addr);
+
     if (argc <= 1)
         FATAL("too few arguments: %d", argc);
 
@@ -215,10 +220,21 @@ int main(int argc, char **argv)
 	/* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
 	 * MVX slave node */
 	if ((syscall_num == SYS_read) && (args[0] == 0)) {
+            long ret;
+	    char buf[128];
+            if (listen(sockfd, SOMAXCONN) < 0)
+		FATAL("listen error");
+	    PRINT("sockfd: %d\n", sockfd);
+	    if ((connfd = accept(sockfd, &in_addr, &in_len)) == -1) {
+		PRINT("error connfd: %d. err: %d\n", connfd, errno);
+	    }
+	    PRINT("connfd: %d\n", connfd);
+
 	    memset(&input, 0, sizeof(input));
-	    if (read(sockfd, input.src, 8) == -1)
-		    PRINT("read error\n");
-            PRINT("input: 0x%lx, %s\n", input.val, input.str);
+	    if (read(connfd, input.str, 8) == -1)
+	        PRINT("read error\n");
+	    PRINT("input: 0x%lx, %s\n", input.val, input.str);
+            //PRINT("input: 0x%lx, %s\n", input.val, input.str);
             ret = ptrace(PTRACE_POKEDATA, pid, args[1], input.val);
             PRINT("ret: %ld\n", ret);
             ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_getpid);
