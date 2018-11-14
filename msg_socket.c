@@ -1,17 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <errno.h>
-
-#define MAXEVENTS 64
+#include "msg_socket.h"
 int port = 8888;
-typedef struct sockaddr SA;
 
 static int make_socket_non_blocking(int sfd)
 {
@@ -32,7 +20,33 @@ static int make_socket_non_blocking(int sfd)
 	return 0;
 }
 
-static int create_socket(void)
+int create_client_socket(char *ip)
+{
+	int clientfd;
+	struct sockaddr_in serveraddr;
+
+	/* Create a socket descriptor */
+	if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		fprintf(stderr, "create listen socket error\n");
+		return -1;
+	}
+	memset(&serveraddr, 0, sizeof(serveraddr));
+	serveraddr.sin_family = AF_INET;
+	//serveraddr.sin_addr.s_addr = INADDR_ANY;
+	serveraddr.sin_port = htons(port);
+	if (inet_pton(AF_INET, ip, &serveraddr.sin_addr) < 0) {
+		fprintf(stderr, "convert serveraddr error\n");
+		return -1;
+	}
+	if (connect(clientfd, (SA*)&serveraddr, sizeof(serveraddr)) < 0) {
+		fprintf(stderr, "connection error\n");
+		return -1;
+	}
+
+	return clientfd;
+}
+
+int create_server_socket(void)
 {
 	int listenfd, flags;
 	struct sockaddr_in serveraddr;
@@ -70,6 +84,7 @@ static int create_socket(void)
 	return listenfd;
 }
 
+#if 0
 static int accept_connection(int listenfd, int epollfd)
 {
 	int connfd;
@@ -100,6 +115,7 @@ static int accept_connection(int listenfd, int epollfd)
 		in_len = sizeof(in_addr);
 	}
 }
+#endif
 
 void process_data(int fd)
 {
@@ -121,32 +137,35 @@ void process_data(int fd)
 	close(fd);
 }
 
-int main(int argc, char *argv[])
+void send_data(int fd, char *buf, size_t size)
 {
-	struct epoll_event event;
-	struct epoll_event events[MAXEVENTS];
-	int listenfd, efd;
-	int ret = 0;
+	//char buf[512];
+	write(fd, buf, size);
+}
 
+int init(void)
+{
 	/* create socket and listen */
-	if ((listenfd = create_socket()) < 0)
+	if ((listenfd = create_server_socket()) < 0)
 		abort();
-
 	if (listen(listenfd, SOMAXCONN) < 0)
 		fprintf(stderr, "listen socket error\n");
 
 	/* create epoll */
 	efd = epoll_create1(0);
-
 	event.data.fd = listenfd;
 	event.events = EPOLLIN | EPOLLET;
 	//event.events = EPOLLIN;
-
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
-
 	printf("listenfd: %d, efd: %d. MAXEVENTS %d\n",
 	       listenfd, efd, MAXEVENTS);
+}
+
+#if 0
+int main(int argc, char *argv[])
+{
+	int ret = 0;
 
 	while (1) {
 		int nfds, i;
@@ -174,3 +193,4 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+#endif

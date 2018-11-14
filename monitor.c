@@ -24,6 +24,8 @@
 #include <sys/reg.h>	// ORIG_RAX
 #endif
 
+#include "msg_socket.h"
+
 #define FATAL(...) \
     do { \
         fprintf(stderr, "[mvx error]: " __VA_ARGS__); \
@@ -36,7 +38,6 @@
 	fprintf(stdout, "[mvx]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
-	//fputc('\n', stdout); \
 
 #define PTR	0
 #define INT	1
@@ -81,7 +82,7 @@ void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
 {
     //char read_param[20] = "Hello World!";
     unsigned long mem_loc, reg_loc = 0;
-    int ret;
+    long ret;
 #ifdef __x86_64__
     mem_loc = regs->rsi;
     reg_loc = 8*ORIG_RAX;
@@ -96,10 +97,12 @@ void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
     /* Inject input string. */
     memcpy(input.str, "hello", sizeof("hello"));
     ret = ptrace(PTRACE_POKEDATA, pid, mem_loc, input.val);
-    PRINT("ret: %d\n", ret);
+    PRINT("ret: %ld\n", ret);
+    //ret = ptrace(PTRACE_PEEKTEXT, pid, regs->pc, 0);
+    //PRINT("ret: 0x%lx\n", ret);
     /* Inject getpid syscall */
     ret = ptrace(PTRACE_POKEUSER, pid, reg_loc, SYS_getpid);
-    PRINT("ret: %d\n", ret);
+    PRINT("ret: %ld\n", ret);
 }
 
 /* @param: syscall num & arguments */
@@ -158,6 +161,7 @@ static inline int arm64_get_sc_args(struct user_regs_struct regs,
 
 int main(int argc, char **argv)
 {
+    int sockfd, clientfd;
     if (argc <= 1)
         FATAL("too few arguments: %d", argc);
 
@@ -173,6 +177,8 @@ int main(int argc, char **argv)
     }
 
     /* parent */
+    sockfd = create_server_socket();
+
     waitpid(pid, 0, 0); // sync with PTRACE_TRACEME
     ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
@@ -205,10 +211,23 @@ int main(int argc, char **argv)
 	if (syscall_num == -1) break;
 	pre_syscall(syscall_num, args, &regs, pid);
 
-	/* MVX: Sync the syscall (e.g., SYS_read) params for inputs */
+#ifdef __x86_64__
+	/* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
+	 * MVX slave node */
 	if ((syscall_num == SYS_read) && (args[0] == 0)) {
-	    sync_syscall(syscall_num, &regs, pid);
+	    memset(&input, 0, sizeof(input));
+	    if (read(sockfd, input.src, 8) == -1)
+		    PRINT("read error\n");
+            PRINT("input: 0x%lx, %s\n", input.val, input.str);
+            ret = ptrace(PTRACE_POKEDATA, pid, args[1], input.val);
+            PRINT("ret: %ld\n", ret);
+            ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_getpid);
+            PRINT("ret: %ld\n", ret);
+	    //sync_syscall(syscall_num, &regs, pid);
 	}
+#endif
+#ifdef __aarch64__
+#endif
 
 
         /* Run system call and stop on exit */
@@ -236,6 +255,16 @@ int main(int argc, char **argv)
             FATAL("%s. 3", strerror(errno));
 	}
 	post_syscall(syscall_num, regs.regs[8]);
+	if ((syscall_num == SYS_read) && (args[0] == 0)) {
+	    /* MVX: Send the syscall (e.g., SYS_read) params to slaves.
+	     * MVX master node */
+	    memset(&input, 0, sizeof(input));
+            input.val = ptrace(PTRACE_PEEKDATA, pid, args[1], 0);
+            PRINT("input: 0x%lx. %s\n", input.val, input.str);
+	    clientfd = create_client_socket("10.4.4.16");
+	    if (write(clientfd, input.str, sizeof(input.str)) == -1)
+		PRINT("write error\n");
+	}
 #endif
     }
 }
