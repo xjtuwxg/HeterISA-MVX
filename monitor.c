@@ -26,6 +26,8 @@
 
 #include "msg_socket.h"
 
+//#define _DEBUG
+#ifdef _DEBUG
 #define FATAL(...) \
     do { \
         fprintf(stderr, "[mvx error]: " __VA_ARGS__); \
@@ -38,6 +40,12 @@
 	fprintf(stdout, "[mvx]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
+#else
+#define FATAL(...) \
+    do {} while(0);
+#define PRINT(...) \
+    do {} while(0);
+#endif
 
 #define PTR	0
 #define INT	1
@@ -118,11 +126,11 @@ void pre_syscall(long syscall, long long args[], struct user_regs_struct *regs,
 	int i;
 	PRINT("[%3ld] %s (", syscall, ent.name);
 	if (nargs != 0)
-	    fprintf(stderr, "%s: 0x%llx", ent.sc_arg.arg[0], args[0]);
+	    PRINT("%s: 0x%llx", ent.sc_arg.arg[0], args[0]);
 	for (i = 1; i < nargs; i++) {
-	    fprintf(stderr, ", %s: 0x%llx", ent.sc_arg.arg[i], args[i]);
+	    PRINT(", %s: 0x%llx", ent.sc_arg.arg[i], args[i]);
 	}
-	fprintf(stderr, ")\n");
+	PRINT(")\n");
 	// if the syscall is read, we modify the input
     }
 }
@@ -134,7 +142,7 @@ void post_syscall(long syscall, long result)
 
     if (ent.name != 0 && 0) {
         /* Print system call result */
-        fprintf(stderr, " = 0x%lx\n", result);
+        PRINT(" = 0x%lx\n", result);
     }
 }
 
@@ -175,7 +183,7 @@ int main(int argc, char **argv)
         case -1: /* error */
             FATAL("%s. pid -1", strerror(errno));
         case 0:  /* child */
-            fprintf(stderr, "pid: %d\n", pid);
+            PRINT("pid: %d\n", pid);
             ptrace(PTRACE_TRACEME, 0, 0, 0);
             execvp(argv[1], argv + 1);
             FATAL("%s. child", strerror(errno));
