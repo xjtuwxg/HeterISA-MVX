@@ -19,4 +19,6 @@ static inline int ptrace_syscall(pid_t pid)
 }
 
 long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[]);
+long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
+
 #endif
