@@ -152,7 +152,9 @@ int init(void)
 		fprintf(stderr, "listen socket error\n");
 
 	/* create epoll */
-	efd = epoll_create1(0);
+	if ((efd = epoll_create1(0)) == -1) {
+		//FATAL("epoll create error");
+	}
 	event.data.fd = listenfd;
 	event.events = EPOLLIN | EPOLLET;
 	//event.events = EPOLLIN;

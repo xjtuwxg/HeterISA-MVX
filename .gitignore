@@ -136,3 +136,4 @@ all.config
 mvx_monitor
 test
 test-musl
+core

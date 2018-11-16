@@ -7,7 +7,7 @@ CFLAGS = -std=c99 -Wall -Wextra -O3 -g3 \
 all: mvx_monitor test
 
 mvx_monitor: monitor.c
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ monitor.c msg_socket.c
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ monitor.c msg_socket.c ptrace.c
 
 test: test.c
 	$(CC) -o $@ test.c 
@@ -15,4 +15,4 @@ test: test.c
 
 
 clean:
-	rm -f mvx_monitor test
+	rm -f mvx_monitor test test-musl
