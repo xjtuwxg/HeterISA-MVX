@@ -134,6 +134,6 @@ all.config
 *.kdev4
 
 mvx_monitor
-test
-test-musl
+basic
+basic-musl
 core
