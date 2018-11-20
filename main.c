@@ -33,14 +33,9 @@
 
 #define IP_CLIENT	"10.4.4.16"
 
-//static int sockfd, clientfd;
-
 int main(int argc, char **argv)
 {
 	int clientfd;
-	//int connfd;
-	//SA in_addr;
-	//socklen_t in_len = sizeof(in_addr);
 
 	if (argc <= 1)
 	    FATAL("too few arguments: %d", argc);

@@ -37,4 +37,15 @@
 #define RAW_PRINT(...)	do {} while(0)
 #endif
 
+#define _MSG_DEBUG
+#ifdef _MSG_DEBUG
+#define MSG_PRINT(...) \
+    do { \
+	fprintf(stdout, "[mvx msg]: " __VA_ARGS__); \
+	fflush(stdout); \
+    } while (0);
+#else
+#define MSG_PRINT(...)	do {} while(0)
 #endif
+
+#endif	// _DEBUG_H
