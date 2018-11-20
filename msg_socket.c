@@ -1,4 +1,5 @@
 #include "msg_socket.h"
+#include "debug.h"
 int port = 8888;
 
 static int make_socket_non_blocking(int sfd)
@@ -48,7 +49,7 @@ int create_client_socket(char *ip)
 
 int create_server_socket(void)
 {
-	int listenfd, flags;
+	int listenfd;
 	struct sockaddr_in serveraddr;
 	int opt = 1;
 
@@ -78,13 +79,12 @@ int create_server_socket(void)
 	}
 
 	/* make socket non blocking ?? */
-//	if (make_socket_non_blocking(listenfd) == -1)
-//		return -1;
+	if (make_socket_non_blocking(listenfd) == -1)
+		return -1;
 
 	return listenfd;
 }
 
-#if 0
 static int accept_connection(int listenfd, int epollfd)
 {
 	int connfd;
@@ -114,8 +114,8 @@ static int accept_connection(int listenfd, int epollfd)
 		}
 		in_len = sizeof(in_addr);
 	}
+	return 0;
 }
-#endif
 
 void process_data(int fd)
 {
@@ -126,7 +126,7 @@ void process_data(int fd)
 
 	while ((cnt = read(fd, buf, sizeof(buf)-1))) {
 		if (cnt == -1) {
-			if (errno = EAGAIN) return;
+			if (errno == EAGAIN) return;
 			fprintf(stderr, "read error\n");
 			break;
 		}
@@ -135,15 +135,20 @@ void process_data(int fd)
 	}
 	printf("Close conn on fd: %d\n", fd);
 	close(fd);
+
+	// copy data to global message
+	memcpy(msg.buf, buf, cnt);
+	msg.len = cnt;
+	sem_post(&msg.lock);
 }
 
-void send_data(int fd, char *buf, size_t size)
+/*void send_data(int fd, char *buf, size_t size)
 {
 	//char buf[512];
 	write(fd, buf, size);
-}
+}*/
 
-int init(void)
+void * msg_thread_main(void *args)
 {
 	/* create socket and listen */
 	if ((listenfd = create_server_socket()) < 0)
@@ -153,7 +158,7 @@ int init(void)
 
 	/* create epoll */
 	if ((efd = epoll_create1(0)) == -1) {
-		//FATAL("epoll create error");
+		FATAL("epoll create error");
 	}
 	event.data.fd = listenfd;
 	event.events = EPOLLIN | EPOLLET;
@@ -162,12 +167,6 @@ int init(void)
 		fprintf(stderr, "epoll ctr error\n");
 	printf("listenfd: %d, efd: %d. MAXEVENTS %d\n",
 	       listenfd, efd, MAXEVENTS);
-}
-
-#if 0
-int main(int argc, char *argv[])
-{
-	int ret = 0;
 
 	while (1) {
 		int nfds, i;
@@ -192,7 +191,23 @@ int main(int argc, char *argv[])
 	}
 
 	close(listenfd);
-
-	return 0;
 }
-#endif
+
+void msg_thread_init(void)
+{
+	pthread_t tid;
+
+	// init the global message msg.
+	memset(msg.buf, 0, sizeof(msg.buf));
+	sem_init(&msg.lock, 0, 0);
+
+	// create the messaging thread.
+	pthread_create(&tid, NULL, msg_thread_main, NULL);
+	PRINT("%s should never return!\n", __func__);
+}
+
+void msg_wait_recv(msg_t *msg)
+{
+	sem_wait(&msg->lock);
+}
+

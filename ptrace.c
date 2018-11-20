@@ -76,7 +76,6 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
 		FATAL("%s", strerror(errno));
         }
 	return regs->rax;
-
 #endif
 #ifdef __aarch64__
 	struct iovec iov;
@@ -107,4 +106,43 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
 #endif
 #endif
 
+}
+
+/**
+ * Copy data from parent address space (src, len) to child process (pid, dst).
+ * */
+int update_child_data(pid_t pid, long long dst, char *src, size_t len)
+{
+	long ret;
+	int cnt = len / sizeof(long long);
+	long long dst_loc = dst;
+	int i;
+
+	memset(&input, 0, sizeof(input));
+	for (i = 0; i < cnt; i++) {
+		memcpy(input.str, src+i*8, 8);
+		ret = ptrace(PTRACE_POKEDATA, pid, dst_loc+i*8, input.val);
+		if (ret) FATAL("%s error", __func__);
+	}
+	/// TODO: finish str cpy
+
+	return 0;
+}
+
+/**
+ * Copy data from child process.
+ * */
+int get_child_data(pid_t pid, char *dst, long long src, size_t len)
+{
+	size_t cnt = len / sizeof(long long);
+	size_t i;
+	memset(&input, 0, sizeof(input));
+
+	if (cnt*8 < len) cnt++;
+	for (i = 0; i < cnt; i++) {
+		input.val = ptrace(PTRACE_PEEKDATA, pid, src+8*i, 0);
+		memcpy(dst+8*i, input.str, 8);
+	}
+	dst[len] = 0;
+	return 0;
 }
