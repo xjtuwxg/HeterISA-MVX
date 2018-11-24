@@ -4,7 +4,7 @@
 #include <stdio.h>	// stderr
 #include <stdlib.h>	// EXIT_FAILURE
 
-//#define _DEBUG
+#define _DEBUG
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \

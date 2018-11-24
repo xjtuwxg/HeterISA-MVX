@@ -71,7 +71,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 	int val;
 	switch (syscall_num) {
 	case SYS_read:	// Wait and get stdin from master variant.
-		if (args[0] == 0) {
+		if (args[0] == 5) {
 			sem_getvalue(&msg.lock, &val);
 			PRINT("before sem_wait. %d\n", val);
 			sem_wait(&msg.lock);
@@ -118,7 +118,7 @@ void master_syncpoint(pid_t pid, long syscall_num, long long args[],
 	char buf[1024];
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
-		if (args[0] == 0) {	// arg[1]: buf, arg[2]: count
+		if (args[0] == 5) {	// arg[1]: buf, arg[2]: count
 			get_child_data(pid, buf, args[1], args[2]);
 			PRINT("%s. cnt %lld\n", buf, retval);
 			write(fd, buf, retval-1);
