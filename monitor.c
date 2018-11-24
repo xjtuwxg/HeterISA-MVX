@@ -112,14 +112,16 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 #endif
 }
 
-void master_syncpoint(pid_t pid, long syscall_num, long long args[], int fd)
+void master_syncpoint(pid_t pid, long syscall_num, long long args[],
+		      long long retval, int fd)
 {
 	char buf[1024];
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
 		if (args[0] == 0) {	// arg[1]: buf, arg[2]: count
 			get_child_data(pid, buf, args[1], args[2]);
-			write(fd, buf, args[2]);
+			PRINT("%s. cnt %lld\n", buf, retval);
+			write(fd, buf, retval);
 		}
 		break;
 	}
