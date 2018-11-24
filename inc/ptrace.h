@@ -10,11 +10,20 @@
 #include <elf.h>		// NT_PRSTATUS
 #include <string.h>		// strerror
 
+#ifdef __x86_64__
+#include <sys/reg.h>		// ORIG_RAX
+#endif
+
+#include <syscall.h>		// SYS_getpid
+
 union u {
     long val;
     char str[8];
 } input;
 
+/**
+ * Start the tracee syscall and wait until it traps back.
+ * */
 static inline int ptrace_syscall(pid_t pid)
 {
         if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
@@ -24,10 +33,21 @@ static inline int ptrace_syscall(pid_t pid)
 	return 0;
 }
 
+/**
+ * Replace the x86 syscall with a SYS_getpid.
+ * */
+static inline int syscall_getpid(pid_t pid)
+{
+	int ret;
+	ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_getpid);
+	return ret;
+}
+
 long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[]);
 long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
 
 int update_child_data(pid_t pid, long long dst, char *src, size_t len);
 int get_child_data(pid_t pid, char *dst, long long src, size_t len);
+
 
 #endif

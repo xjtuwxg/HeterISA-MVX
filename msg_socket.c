@@ -93,13 +93,13 @@ static int accept_connection(int listenfd, int epollfd)
 	char hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
 	struct epoll_event event;
 
-	MSG_PRINT("%s: listenfd: %d\n", __FUNCTION__, listenfd);
+	//MSG_PRINT("%s: listenfd: %d\n", __FUNCTION__, listenfd);
 
 	while ((connfd = accept(listenfd, &in_addr, &in_len)) != -1) {
 		if (getnameinfo(&in_addr, in_len, hbuf, sizeof(hbuf), pbuf,
 				sizeof(pbuf), NI_NUMERICHOST) == 0) {
-			MSG_PRINT("accept conn on fd %d, host: %s, port: %s\n",
-			       connfd, hbuf, pbuf);
+			//MSG_PRINT("accept conn on fd %d, host: %s, port: %s\n",
+			//       connfd, hbuf, pbuf);
 		}
 		/* non blocking socket */
 		if (make_socket_non_blocking(connfd) == -1) {
@@ -120,22 +120,27 @@ static int accept_connection(int listenfd, int epollfd)
 void process_data(int fd)
 {
 	ssize_t cnt;
+	//ssize_t msg_len = 0;
 	char buf[512];
 
-	MSG_PRINT("Process data on fd %d\n", fd);
-
+	//MSG_PRINT("Process data on fd %d\n", fd);
+	cnt = read(fd, buf, sizeof(buf)-1);
+	buf[cnt] = 0;
+#if 0
 	while ((cnt = read(fd, buf, sizeof(buf)-1))) {
 		if (cnt == -1) {
 			if (errno == EAGAIN) return;
 			fprintf(stderr, "read error\n");
 			break;
 		}
-		buf[cnt] = 0;
+		msg_len += cnt;
 		MSG_PRINT("Client input: %s. cnt %u\n", buf, cnt);
 	}
-	MSG_PRINT("Close conn on fd: %d\n", fd);
+#endif
+	//MSG_PRINT("Close conn on fd: %d\n", fd);
 	close(fd);
 
+	PRINT("msg: %s, cnt: %u\n", buf, cnt);
 	// copy data to global message
 	memcpy(msg.buf, buf, cnt);
 	msg.len = cnt;
@@ -168,14 +173,14 @@ void * msg_thread_main(void *args)
 	//event.events = EPOLLIN;
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
-	MSG_PRINT("listenfd: %d, efd: %d. MAXEVENTS %d\n",
-	       listenfd, efd, MAXEVENTS);
+	//MSG_PRINT("listenfd: %d, efd: %d. MAXEVENTS %d\n",
+	//       listenfd, efd, MAXEVENTS);
 
 	while (1) {
 		int nfds, i;
 		/* nfds, events are output values */
 		nfds = epoll_wait(efd, events, MAXEVENTS, -1);
-		MSG_PRINT("# of events(fds): %d\n", nfds);
+		//MSG_PRINT("# of events(fds): %d\n", nfds);
 
 		for (i = 0; i < nfds; i++) {
 			if (listenfd == events[i].data.fd) {

@@ -114,15 +114,18 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
 int update_child_data(pid_t pid, long long dst, char *src, size_t len)
 {
 	long ret;
-	int cnt = len / sizeof(long long);
-	long long dst_loc = dst;
-	int i;
+	size_t cnt = len / sizeof(long long);
+	//long long dst_loc = dst;
+	size_t i;
 
 	memset(&input, 0, sizeof(input));
+	if (cnt*sizeof(long long) < len) cnt++;
 	for (i = 0; i < cnt; i++) {
 		memcpy(input.str, src+i*8, 8);
-		ret = ptrace(PTRACE_POKEDATA, pid, dst_loc+i*8, input.val);
+		PRINT("input: %s. cnt: %u. i: %u\n", input.str, cnt, i);
+		ret = ptrace(PTRACE_POKEDATA, pid, dst+i*8, input.val);
 		if (ret) FATAL("%s error", __func__);
+		PRINT("POKEdata ret %d\n", ret);
 	}
 	/// TODO: finish str cpy
 

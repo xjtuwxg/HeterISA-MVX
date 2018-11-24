@@ -80,6 +80,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			PRINT("pid %u, args[1] 0x%llx, buf: %s, len: %u\n",
 			      pid, args[1], msg.buf, msg.len);
 			update_child_data(pid, args[1], msg.buf, msg.len);
+			syscall_getpid(pid);
 		}
 		break;
 	}
