@@ -121,7 +121,7 @@ void master_syncpoint(pid_t pid, long syscall_num, long long args[],
 		if (args[0] == 0) {	// arg[1]: buf, arg[2]: count
 			get_child_data(pid, buf, args[1], args[2]);
 			PRINT("%s. cnt %lld\n", buf, retval);
-			write(fd, buf, retval);
+			write(fd, buf, retval-1);
 		}
 		break;
 	}
