@@ -38,8 +38,10 @@ static inline int ptrace_syscall(pid_t pid)
  * */
 static inline int syscall_getpid(pid_t pid)
 {
-	int ret;
+	int ret = 0;
+#ifdef __x86_64__
 	ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_getpid);
+#endif
 	return ret;
 }
 
