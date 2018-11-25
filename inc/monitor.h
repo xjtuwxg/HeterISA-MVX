@@ -1,13 +1,14 @@
 #ifndef _MONITOR_H
 #define _MONITOR_H
 
-#include <sys/ptrace.h>		// ptrace
+#include <sys/ptrace.h>		// ptrace()
 #include <sys/user.h>		// struct user_regs_struct
 #include <stdio.h>		// pid_t
 #include <sys/types.h>		// pid_t
 #include <syscall.h>		// SYS_read, SYS_getpid
 #include <errno.h>		// errno
-#include <string.h>		// memcpy
+#include <string.h>		// memcpy()
+#include <assert.h>		// assert()
 
 #ifdef __x86_64__
 #include <sys/reg.h>		// ORIG_RAX
@@ -48,7 +49,7 @@ void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);
 
 void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[]);
-void master_syncpoint(pid_t pid, long syscall_num, long long args[],
-		      long long retval, int fd);
+void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
+		      long long retval);
 
 #endif

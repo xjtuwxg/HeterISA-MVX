@@ -91,8 +91,8 @@ int main(int argc, char **argv)
 #ifdef __aarch64__
 		/* Master gets the user input, and syncs the value to slave
 		 * variant. */
-		master_syncpoint(pid, syscall_num, args,
-				 syscall_retval, clientfd);
+		master_syncpoint(pid, clientfd, syscall_num, args,
+				 syscall_retval);
 #endif
 	}
 }

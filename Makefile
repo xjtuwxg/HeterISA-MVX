@@ -4,7 +4,7 @@ CFLAGS = -std=c99 -Wall -Wextra -O3 -g3 \
 		-Wno-missing-field-initializers -Wno-missing-braces -g -funwind-tables -I inc
 LDFLAGS= -lpthread
 
-all: mvx_monitor testall
+all: clean mvx_monitor testall
 
 mvx_monitor: main.c monitor.c msg_socket.c ptrace.c
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c monitor.c msg_socket.c ptrace.c $(LDFLAGS)

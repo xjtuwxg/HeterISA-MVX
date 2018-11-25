@@ -112,17 +112,37 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 #endif
 }
 
-void master_syncpoint(pid_t pid, long syscall_num, long long args[],
-		      long long retval, int fd)
+/**
+ * Inline funtion to handle SYS_read on master node.
+ * */
+static inline void master_sys_read(pid_t pid, int fd, long long args[],
+		      long long retval)
 {
-	char buf[1024];
+	int child_fd = args[0];
+	long long child_buf = args[1];
+	size_t child_cnt = args[2];
+	char *monitor_buf = NULL;
+
+	assert(child_cnt > 0);
+	monitor_buf = malloc(child_cnt+8);
+	if (child_fd == 5) {
+		get_child_data(pid, monitor_buf, child_buf, child_cnt);
+		PRINT("%s. cnt %lld\n", monitor_buf, retval);
+		write(fd, monitor_buf, retval);
+	}
+	free(monitor_buf);
+}
+
+/**
+ * The synchronization function on master node, executing syscall and forward
+ * the result to slaves.
+ * */
+void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
+		      long long retval)
+{
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
-		if (args[0] == 5) {	// arg[1]: buf, arg[2]: count
-			get_child_data(pid, buf, args[1], args[2]);
-			PRINT("%s. cnt %lld\n", buf, retval);
-			write(fd, buf, retval-1);
-		}
+		master_sys_read(pid, fd, args, retval);
 		break;
 	}
 
