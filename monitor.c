@@ -35,35 +35,6 @@ void post_syscall(long syscall, long result)
     }
 }
 
-#if 0
-void sync_syscall(long syscall, struct user_regs_struct *regs, pid_t pid)
-{
-    //char read_param[20] = "Hello World!";
-    unsigned long mem_loc, reg_loc = 0;
-    long ret;
-#ifdef __x86_64__
-    mem_loc = regs->rsi;
-    reg_loc = 8*ORIG_RAX;
-#endif
-#ifdef __aarch64__
-    mem_loc = regs->regs[1];
-#endif
-    //fprintf(stderr, "[%3ld] %p --> %s\n", syscall, args, read_param);
-    //input.val = ptrace(PTRACE_PEEKDATA, pid, regs->rsi, 0);
-    //PRINT("%s\n", input.str);
-    //PRINT("0x%lx", input.val);
-    /* Inject input string. */
-    memcpy(input.str, "hello", sizeof("hello"));
-    ret = ptrace(PTRACE_POKEDATA, pid, mem_loc, input.val);
-    PRINT("ret: %ld\n", ret);
-    //ret = ptrace(PTRACE_PEEKTEXT, pid, regs->pc, 0);
-    //PRINT("ret: 0x%lx\n", ret);
-    /* Inject getpid syscall */
-    ret = ptrace(PTRACE_POKEUSER, pid, reg_loc, SYS_getpid);
-    PRINT("ret: %ld\n", ret);
-}
-#endif
-
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
  * MVX slave node */
 void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
@@ -77,39 +48,13 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			sem_wait(&msg.lock);
 			sem_getvalue(&msg.lock, &val);
 			PRINT("after sem_wait. %d\n", val);
-			PRINT("pid %u, args[1] 0x%llx, buf: %s, len: %u\n",
+			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
 			      pid, args[1], msg.buf, msg.len);
 			update_child_data(pid, args[1], msg.buf, msg.len);
 			syscall_getpid(pid);
 		}
 		break;
 	}
-#if 0
-	if ((syscall_num == SYS_read) && (args[0] == 0)) {
-		long ret;
-		char buf[128];
-		if (listen(sockfd, SOMAXCONN) < 0)
-		    FATAL("listen error");
-		PRINT("sockfd: %d\n", sockfd);
-		if ((connfd = accept(sockfd, &in_addr, &in_len)) == -1) {
-		    PRINT("error connfd: %d. err: %d\n", connfd, errno);
-		}
-		PRINT("connfd: %d\n", connfd);
-
-		memset(&input, 0, sizeof(input));
-		if (read(connfd, input.str, 8) == -1)
-		    PRINT("read error\n");
-		PRINT("input: 0x%lx, %s\n", input.val, input.str);
-		//PRINT("input: 0x%lx, %s\n", input.val, input.str);
-#ifdef __x86_64__
-		ret = ptrace(PTRACE_POKEDATA, pid, args[1], input.val);
-		PRINT("ret: %ld\n", ret);
-		ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_getpid);
-		PRINT("ret: %ld\n", ret);
-#endif
-		//sync_syscall(syscall_num, &regs, pid);
-	}
-#endif
 }
 
 /**

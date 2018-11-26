@@ -4,7 +4,11 @@
 #include <stdio.h>	// stderr
 #include <stdlib.h>	// EXIT_FAILURE
 
+/**
+ * The DEBUG mode print functions.
+ * */
 #define _DEBUG
+
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \
@@ -35,17 +39,19 @@
 #define ERROR(...)	do {} while(0)
 #define PRINT(...)	do {} while(0)
 #define RAW_PRINT(...)	do {} while(0)
-#endif
+#endif	// end _DEBUG
+
 
 #define _MSG_DEBUG
+
 #ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \
     do { \
 	fprintf(stdout, "[mvx msg]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
-#else
+#else	// ifdef _MSG_DEBUG
 #define MSG_PRINT(...)	do {} while(0)
-#endif
+#endif	// end	_MSG_DEBUG
 
 #endif	// _DEBUG_H

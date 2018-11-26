@@ -27,9 +27,11 @@
 #include "ptrace.h"
 #include "monitor.h"
 
+#if 0
 #define PTR	0
 #define INT	1
 #define UINT	2
+#endif
 
 #define IP_CLIENT	"10.4.4.16"
 
@@ -73,7 +75,7 @@ int main(int argc, char **argv)
 		syscall_num = get_regs_args(pid, &regs, args);
 		if (syscall_num == -1) break;
 
-		pre_syscall(syscall_num, args);
+		//pre_syscall(syscall_num, args);
 
 #ifdef __x86_64__
 		/* Slave variant has to wait the master variant' input */
@@ -87,7 +89,7 @@ int main(int argc, char **argv)
 		syscall_retval = get_retval(pid, &regs, &terminate);
 		if (terminate) break;
 
-		post_syscall(syscall_num, syscall_retval);
+		//post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
 		/* Master gets the user input, and syncs the value to slave
 		 * variant. */

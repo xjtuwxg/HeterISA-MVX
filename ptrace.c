@@ -91,19 +91,6 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
 		FATAL("%s.", strerror(errno));	// strerror may have segfault
 	}
 	return regs->regs[0];
-	//post_syscall(syscall_num, regs.regs[8]);
-#if 0
-	if ((syscall_num == SYS_read) && (args[0] == 0)) {
-		/* MVX: Send the syscall (e.g., SYS_read) params to slaves.
-		 * MVX master node */
-		memset(&input, 0, sizeof(input));
-		input.val = ptrace(PTRACE_PEEKDATA, pid, args[1], 0);
-		PRINT("input: 0x%lx. %s\n", input.val, input.str);
-		clientfd = create_client_socket("10.4.4.16");
-		if (write(clientfd, input.str, sizeof(input.str)) == -1)
-			PRINT("write error\n");
-	}
-#endif
 #endif
 
 }
@@ -115,19 +102,17 @@ int update_child_data(pid_t pid, long long dst, char *src, size_t len)
 {
 	long ret;
 	size_t cnt = len / sizeof(long long);
-	//long long dst_loc = dst;
 	size_t i;
 
 	memset(&input, 0, sizeof(input));
-	if (cnt*sizeof(long long) < len) cnt++;
+	if (cnt*sizeof(long long) < len) cnt++;	// verify whether need cnt+1
 	for (i = 0; i < cnt; i++) {
 		memcpy(input.str, src+i*8, 8);
-		PRINT("input: %s. cnt: %u. i: %u\n", input.str, cnt, i);
+		PRINT("input: %s. cnt: %lu. i: %lu\n", input.str, cnt, i);
 		ret = ptrace(PTRACE_POKEDATA, pid, dst+i*8, input.val);
 		if (ret) FATAL("%s error", __func__);
-		PRINT("POKEdata ret %d\n", ret);
+		PRINT("POKEdata ret %ld\n", ret);
 	}
-	/// TODO: finish str cpy
 
 	return 0;
 }
@@ -141,7 +126,7 @@ int get_child_data(pid_t pid, char *dst, long long src, size_t len)
 	size_t i;
 	memset(&input, 0, sizeof(input));
 
-	if (cnt*8 < len) cnt++;
+	if (cnt*8 < len) cnt++;	// verify whether need cnt+1
 	for (i = 0; i < cnt; i++) {
 		input.val = ptrace(PTRACE_PEEKDATA, pid, src+8*i, 0);
 		memcpy(dst+8*i, input.str, 8);

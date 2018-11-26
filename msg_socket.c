@@ -140,14 +140,14 @@ void process_data(int fd)
 	//MSG_PRINT("Close conn on fd: %d\n", fd);
 	close(fd);
 
-	PRINT("msg: %s, cnt: %u\n", buf, cnt);
+	PRINT("msg: %s, cnt: %lu\n", buf, cnt);
 	// copy data to global message
 	memcpy(msg.buf, buf, cnt);
 	msg.len = cnt;
 	sem_post(&msg.lock);
 
-	sem_getvalue(&msg.lock, &cnt);
-	PRINT("sem lock %d\n", cnt);
+	//sem_getvalue(&msg.lock, &cnt);
+	//PRINT("sem lock %ld\n", cnt);
 }
 
 /*void send_data(int fd, char *buf, size_t size)

@@ -1,7 +1,8 @@
 .POSIX:
 CC     = cc
-CFLAGS = -std=c99 -Wall -Wextra -O3 -g3 \
-		-Wno-missing-field-initializers -Wno-missing-braces -g -funwind-tables -I inc
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200112L -Wall -Wextra -O3 -g3 \
+		-Wno-missing-field-initializers -Wno-missing-braces -Wno-unused-parameter -Wno-unused-result \
+		-g -funwind-tables -I inc
 LDFLAGS= -lpthread
 
 all: clean mvx_monitor testall
