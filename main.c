@@ -73,9 +73,13 @@ int main(int argc, char **argv)
 		long long syscall_retval;
 
 		syscall_num = get_regs_args(pid, &regs, args);
-		if (syscall_num == -1) break;
+		if (syscall_num == -1) {
+			PRINT("syscall #%ld, terminate\n",
+			      syscall_num);
+			break;
+		}
 
-		//pre_syscall(syscall_num, args);
+		pre_syscall(syscall_num, args);
 
 #ifdef __x86_64__
 		/* Slave variant has to wait the master variant' input */
@@ -87,9 +91,13 @@ int main(int argc, char **argv)
 
 		/* Get system call result, and print it */
 		syscall_retval = get_retval(pid, &regs, &terminate);
-		if (terminate) break;
+		if (terminate) {
+			PRINT("syscall #%ld, ret %lld. terminate\n",
+			      syscall_num, syscall_retval);
+			break;
+		}
 
-		//post_syscall(syscall_num, syscall_retval);
+		post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
 		/* Master gets the user input, and syncs the value to slave
 		 * variant. */
@@ -97,4 +105,5 @@ int main(int argc, char **argv)
 				 syscall_retval);
 #endif
 	}
+	PRINT("Finish main loop!\n");
 }

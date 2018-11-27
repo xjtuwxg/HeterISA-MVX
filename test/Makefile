@@ -1,12 +1,15 @@
 MUSL-CC = musl-gcc
+CFLAGS	= -static
+all: basic epoll
 
-all: basic basic-musl
+#basic: basic.c
+#	$(CC) -o $@ $< 
 
 basic: basic.c
-	$(CC) -o $@ $< 
+	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
-basic-musl: basic.c
-	$(MUSL-CC) -o $@ $<
+epoll: epoll.c
+	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f basic basic-musl
+	rm -f basic epoll

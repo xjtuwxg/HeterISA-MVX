@@ -43,6 +43,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 	switch (syscall_num) {
 	case SYS_read:	// Wait and get stdin from master variant.
 		if (args[0] == 5) {
+		//if (args[0] == 0) {
 			sem_getvalue(&msg.lock, &val);
 			PRINT("before sem_wait. %d\n", val);
 			sem_wait(&msg.lock);
@@ -70,9 +71,11 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
-	if (child_fd == 5) {
+	if (child_fd == 7) {
+	//if (child_fd == 0) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s. cnt %lld\n", monitor_buf, retval);
+		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
+		      child_cnt);
 		write(fd, monitor_buf, retval);
 	}
 	free(monitor_buf);

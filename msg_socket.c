@@ -150,12 +150,6 @@ void process_data(int fd)
 	//PRINT("sem lock %ld\n", cnt);
 }
 
-/*void send_data(int fd, char *buf, size_t size)
-{
-	//char buf[512];
-	write(fd, buf, size);
-}*/
-
 void * msg_thread_main(void *args)
 {
 	/* create socket and listen */
