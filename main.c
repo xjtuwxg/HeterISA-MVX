@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		pre_syscall(syscall_num, args);
+		//pre_syscall(syscall_num, args);
 
 #ifdef __x86_64__
 		/* Slave variant has to wait the master variant' input */
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		post_syscall(syscall_num, syscall_retval);
+		//post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
 		/* Master gets the user input, and syncs the value to slave
 		 * variant. */

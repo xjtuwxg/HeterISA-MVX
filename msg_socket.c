@@ -126,18 +126,6 @@ void process_data(int fd)
 	//MSG_PRINT("Process data on fd %d\n", fd);
 	cnt = read(fd, buf, sizeof(buf)-1);
 	buf[cnt] = 0;
-#if 0
-	while ((cnt = read(fd, buf, sizeof(buf)-1))) {
-		if (cnt == -1) {
-			if (errno == EAGAIN) return;
-			fprintf(stderr, "read error\n");
-			break;
-		}
-		msg_len += cnt;
-		MSG_PRINT("Client input: %s. cnt %u\n", buf, cnt);
-	}
-#endif
-	//MSG_PRINT("Close conn on fd: %d\n", fd);
 	close(fd);
 
 	PRINT("msg: %s, cnt: %lu\n", buf, cnt);

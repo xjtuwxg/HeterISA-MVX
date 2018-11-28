@@ -43,6 +43,14 @@ typedef struct _message_t {
 
 msg_t msg;
 
+typedef struct _message_epoll_t {
+	int epfd;
+	int event_num;
+	int maxevents;
+	int timeout;
+	struct epoll_event events[MAXEVENTS];
+} msg_epoll_t;
+
 int create_client_socket(char *ip);
 int create_server_socket(void);
 
