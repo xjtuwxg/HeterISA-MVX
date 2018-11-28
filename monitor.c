@@ -57,7 +57,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 		break;
 	case SYS_epoll_pwait:
 		{
-			msg_epoll_t epoll_msg;
+			msg_epoll_t epmsg;
 
 			sem_getvalue(&msg.lock, &val);
 			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
@@ -66,11 +66,16 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			PRINT("after sem_wait. %d\n", val);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
 			      pid, args[1], msg.buf, msg.len);
-			memcpy(&epoll_msg, msg.buf, msg.len);
+			memcpy(&epmsg, msg.buf, msg.len);
 			PRINT("epfd: %d, e #: %d, to: %d\n",
-			      epoll_msg.epfd, epoll_msg.event_num,
-			      epoll_msg.timeout);
-			//update_child_data(pid, args[1], msg.buf, msg.len);
+			      epmsg.epfd, epmsg.event_num,
+			      epmsg.timeout);
+			/* updating the epoll_pwait syscall parameters */
+			ptrace(PTRACE_POKEUSER, pid, 8*RDI, epmsg.epfd);
+			ptrace(PTRACE_POKEUSER, pid, 8*RDX, 64);
+			ptrace(PTRACE_POKEUSER, pid, 8*R10, epmsg.timeout);
+			update_child_data(pid, args[1], (char*)(epmsg.events),
+				epmsg.event_num * sizeof(struct epoll_event));
 			syscall_getpid(pid);
 		}
 		break;
@@ -114,10 +119,6 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
-	//int epfd = args[0];
-	//struct epoll_event events[16];
-	//int maxevents = args[2];
-	//int timeout = args[3];
 	msg_epoll_t epoll_msg;
 	size_t events_len = sizeof(struct epoll_event) * retval;
 	int ret = 0;
@@ -130,6 +131,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	get_child_data(pid, (char*)(epoll_msg.events), args[1], events_len);
 	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
 	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
+	PRINT("epoll: events 0x%x, data u64 0x%llx\n",
+	      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
 	ret = write(fd, (void*)&epoll_msg, events_len);
 	PRINT("!!!! epoll_pwait write ret: %d. errno %d\n",
 	      ret, errno);

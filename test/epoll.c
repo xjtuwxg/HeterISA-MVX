@@ -170,9 +170,12 @@ int main()
 	while(1) {
 		int n, i;
 		n = epoll_wait(epoll_fd, events, MAXEVENTS, -1);
+		n = 1;
 		for (i = 0; i < n; i++) {
 			if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP ||
 			    !(events[i].events & EPOLLIN)) {
+				fprintf(stderr, "[%d] events: %x\n",
+					n, events[i].events);
 				/* An error on this fd or socket not ready */
 				perror("epoll error");
 				close(events[i].data.fd);

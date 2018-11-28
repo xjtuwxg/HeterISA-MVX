@@ -104,6 +104,10 @@ int main(int argc, char **argv)
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
 #endif
+#ifdef __x86_64__
+		//follower_update_ret(pid, )
+		//	ptrace(PTRACE_POKEUSER)
+#endif
 	}
 	PRINT("Finish main loop!\n");
 }
