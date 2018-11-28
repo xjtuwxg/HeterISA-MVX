@@ -137,3 +137,4 @@ mvx_monitor
 basic
 basic-musl
 core
+epoll
