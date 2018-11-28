@@ -56,6 +56,9 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 		}
 		break;
 	case SYS_epoll_pwait:
+		{
+			msg_epoll_t epoll_msg;
+
 			sem_getvalue(&msg.lock, &val);
 			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
 			sem_wait(&msg.lock);
@@ -63,8 +66,13 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			PRINT("after sem_wait. %d\n", val);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
 			      pid, args[1], msg.buf, msg.len);
+			memcpy(&epoll_msg, msg.buf, msg.len);
+			PRINT("epfd: %d, e #: %d, to: %d\n",
+			      epoll_msg.epfd, epoll_msg.event_num,
+			      epoll_msg.timeout);
 			//update_child_data(pid, args[1], msg.buf, msg.len);
 			syscall_getpid(pid);
+		}
 		break;
 	}
 }
