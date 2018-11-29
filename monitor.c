@@ -135,7 +135,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
 	PRINT("epoll: events 0x%x, data u64 0x%lx\n",
 	      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
-	ret = write(fd, (void*)&epoll_msg, events_len);
+	ret = write(fd, (void*)&epoll_msg, sizeof(int)*4+events_len);
 	PRINT("!!!! epoll_pwait write ret: %d. errno %d\n",
 	      ret, errno);
 }

@@ -138,6 +138,7 @@ int main()
 {
 	struct epoll_event event, *events;
 
+	printf("sizeof epoll_event: %u\n", sizeof(struct epoll_event));
 	socket_create_bind_local();
 
 	if (make_socket_non_blocking(socket_fd) == -1)
