@@ -108,7 +108,8 @@ int update_child_data(pid_t pid, long long dst, char *src, size_t len)
 	if (cnt*sizeof(long long) < len) cnt++;	// verify whether need cnt+1
 	for (i = 0; i < cnt; i++) {
 		memcpy(input.str, src+i*8, 8);
-		PRINT("input: %s. cnt: %lu. i: %lu\n", input.str, cnt, i);
+		PRINT("input: %s (0x%lx). cnt: %lu. i: %lu\n", input.str,
+		      input.val, cnt, i);
 		ret = ptrace(PTRACE_POKEDATA, pid, dst+i*8, input.val);
 		if (ret) FATAL("%s error", __func__);
 		PRINT("POKEdata ret %ld\n", ret);
