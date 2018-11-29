@@ -56,6 +56,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 		}
 		break;
 	case SYS_epoll_pwait:
+#if __x86_64__
 		{
 			msg_epoll_t epmsg;
 
@@ -78,6 +79,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 				epmsg.event_num * sizeof(struct epoll_event));
 			syscall_getpid(pid);
 		}
+#endif
 		break;
 	}
 }
