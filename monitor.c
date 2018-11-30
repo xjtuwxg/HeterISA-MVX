@@ -59,6 +59,7 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 #if __x86_64__
 		{
 			msg_epoll_t epmsg;
+			struct epoll_event events[16];
 
 			sem_getvalue(&msg.lock, &val);
 			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
@@ -67,16 +68,19 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			PRINT("after sem_wait. %d\n", val);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
 			      pid, args[1], msg.buf, msg.len);
-			memcpy(&epmsg, msg.buf, msg.len);
-			PRINT("epfd: %d, e #: %d, to: %d\n",
-			      epmsg.epfd, epmsg.event_num,
-			      epmsg.timeout);
+			//memcpy(&epmsg, msg.buf, msg.len);
+			memcpy(events, msg.buf, msg.len);
+			//PRINT("epfd: %d, e #: %d, to: %d\n",
+			//      epmsg.epfd, epmsg.event_num,
+			//      epmsg.timeout);
 			/* updating the epoll_pwait syscall parameters */
 			//ptrace(PTRACE_POKEUSER, pid, 8*RDI, epmsg.epfd);
 			//ptrace(PTRACE_POKEUSER, pid, 8*RDX, 64);
 			//ptrace(PTRACE_POKEUSER, pid, 8*R10, epmsg.timeout);
-			update_child_data(pid, args[1], (char*)(epmsg.events),
-				epmsg.event_num * sizeof(struct epoll_event));
+			update_child_data(pid, args[1], (char*)events,
+				msg.len);
+			//update_child_data(pid, args[1], (char*)(epmsg.events),
+			//	epmsg.event_num * sizeof(struct epoll_event));
 			syscall_getpid(pid);
 		}
 #endif
@@ -121,23 +125,40 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
-	msg_epoll_t epoll_msg;
-	size_t events_len = sizeof(struct epoll_event) * retval;
-	int ret = 0;
+	msg_epoll_t epoll_msg;		// contains arch specific code for universal epoll_event.
+	struct epoll_event *events;	// 12 bytes on x86, 16 bytes on arm
+	struct epoll_event_x86 *x86_events;
+	size_t events_len, x86_epoll_len;
+	int ret = 0, i;
 
 	epoll_msg.epfd = args[0];
 	epoll_msg.event_num = retval;
 	epoll_msg.maxevents = args[2];
 	epoll_msg.timeout = args[3];
+	events_len = sizeof(struct epoll_event) * retval;
+	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
+	events = malloc(events_len);
+	x86_events = malloc(events_len);
 
-	get_child_data(pid, (char*)(epoll_msg.events), args[1], events_len);
+
+	//get_child_data(pid, (char*)(epoll_msg.events), args[1], events_len);
+	// Get the child epoll_event data on arm.
+	get_child_data(pid, (char*)events, args[1], events_len);
 	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
 	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
 	PRINT("epoll: events 0x%x, data u64 0x%lx\n",
 	      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
-	ret = write(fd, (void*)&epoll_msg, sizeof(int)*4+events_len);
+	// Convert epoll_data to x86 format.
+	for (i = 0; i < retval; i++) {
+		x86_events[i].events = events[i].events;
+		x86_events[i].data = events[i].data;
+	}
+	//ret = write(fd, (void*)&epoll_msg, sizeof(int)*4+events_len);
+	ret = write(fd, (void*)x86_events, x86_epoll_len);
 	PRINT("!!!! epoll_pwait write ret: %d. errno %d\n",
 	      ret, errno);
+	free(events);
+	free(x86_events);
 }
 
 /**

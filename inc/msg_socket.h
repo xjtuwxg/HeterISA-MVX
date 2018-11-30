@@ -43,12 +43,26 @@ typedef struct _message_t {
 
 msg_t msg;
 
+//#if __aarch64__
+struct epoll_event_x86 {
+	uint32_t events;
+	epoll_data_t data;
+} __attribute__ ((__packed__));
+//#endif
+
 typedef struct _message_epoll_t {
 	int epfd;
 	int event_num;
 	int maxevents;
 	int timeout;
+#if __x86_64__
 	struct epoll_event events[MAXEVENTS];
+#endif
+#if __aarch64__
+	// In order to pass epoll_event correctly on x86, we need to convert it
+	// to 12 bytes.
+	struct epoll_event_x86 events[MAXEVENTS];
+#endif
 } msg_epoll_t;
 
 int create_client_socket(char *ip);
