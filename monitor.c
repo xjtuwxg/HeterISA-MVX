@@ -9,7 +9,8 @@ void pre_syscall(long syscall, long long args[])
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
-    //fprintf(stderr, "[%3ld]\n", syscall);
+    fprintf(stderr, "[%3ld]\n", syscall);
+#if 0
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
@@ -22,6 +23,7 @@ void pre_syscall(long syscall, long long args[])
 	RAW_PRINT(")\n");
 	// if the syscall is read, we modify the input
     }
+#endif
 }
 
 /* @param: syscall num & return value */
@@ -182,10 +184,11 @@ static inline void master_sys_accept(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
 	int ret = 0;
-	char buf[8];
+	char buf[20];
+	PRINT("retval: 0x%llx\n", retval);
 	sprintf(buf, "%llx", retval);
-	ret = write(fd, buf, 8);
-	PRINT("%s: buf %s, ret %d.\n", __func__, buf, ret);
+	ret = write(fd, buf, 16);
+	PRINT("%s: buf %s, ret %d. len %u\n", __func__, buf, ret, strlen(buf));
 }
 
 /**

@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		//pre_syscall(syscall_num, args);
+		pre_syscall(syscall_num, args);
 
 #ifdef __x86_64__
 		/* Follower variant has to wait the master variant' input */
