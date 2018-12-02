@@ -48,7 +48,9 @@ static const syscall_entry_t syscalls[] = {
 void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);
 
-void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[]);
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[]);
+void follower_wait_post_syscall(pid_t pid, long syscall_num);
+
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval);
 

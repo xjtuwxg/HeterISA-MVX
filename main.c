@@ -82,8 +82,9 @@ int main(int argc, char **argv)
 		//pre_syscall(syscall_num, args);
 
 #ifdef __x86_64__
-		/* Slave variant has to wait the master variant' input */
-		wait_master_syncpoint(pid, syscall_num, args);
+		/* Follower variant has to wait the master variant' input */
+		//wait_master_syncpoint(pid, syscall_num, args);
+		follower_wait_pre_syscall(pid, syscall_num, args);
 #endif
 		/* Run system call and stop on exit */
 		if (ptrace_syscall(pid) < 0)
@@ -105,8 +106,8 @@ int main(int argc, char **argv)
 				 syscall_retval);
 #endif
 #ifdef __x86_64__
-		//follower_update_ret(pid, )
-		//	ptrace(PTRACE_POKEUSER)
+		/* Follower wants to wait leader's syscall retval */
+		follower_wait_post_syscall(pid, syscall_num);
 #endif
 	}
 	PRINT("Finish main loop!\n");

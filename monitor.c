@@ -37,7 +37,7 @@ void post_syscall(long syscall, long result)
 
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
  * MVX slave node */
-void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 {
 	int val;
 	switch (syscall_num) {
@@ -83,6 +83,23 @@ void wait_master_syncpoint(pid_t pid, long syscall_num, long long args[])
 			//	epmsg.event_num * sizeof(struct epoll_event));
 			syscall_getpid(pid);
 		}
+#endif
+		break;
+	}
+}
+
+void follower_wait_post_syscall(pid_t pid, long syscall_num)
+{
+	int val;
+	long long master_retval;
+	switch (syscall_num) {
+	case SYS_accept:
+#if __x86_64__
+		sem_wait(&msg.lock);
+		sscanf(msg.buf, "%llx", &master_retval);
+		PRINT("%s: msg.buf: 0x%s, msg.len: %d. master_retval %lld\n",
+		      msg.buf, msg.len, master_retval);
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
 		break;
 	}
@@ -161,6 +178,16 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	free(x86_events);
 }
 
+static inline void master_sys_accept(pid_t pid, int fd, long long args[],
+		      long long retval)
+{
+	int ret = 0;
+	char buf[8];
+	sprintf(buf, "%llx", retval);
+	ret = write(fd, buf, 8);
+	PRINT("%s: buf %s, ret %d.\n", buf, ret);
+}
+
 /**
  * The synchronization function on master node, executing syscall and forward
  * the result to slaves.
@@ -174,6 +201,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		break;
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
+		break;
+	case SYS_accept:
+		master_sys_accept(pid, fd, args, retval);
 		break;
 	}
 
