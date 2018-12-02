@@ -98,7 +98,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		sem_wait(&msg.lock);
 		sscanf(msg.buf, "%llx", &master_retval);
 		PRINT("%s: msg.buf: 0x%s, msg.len: %d. master_retval %lld\n",
-		      msg.buf, msg.len, master_retval);
+		      __func__, msg.buf, msg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
 		break;
@@ -185,7 +185,7 @@ static inline void master_sys_accept(pid_t pid, int fd, long long args[],
 	char buf[8];
 	sprintf(buf, "%llx", retval);
 	ret = write(fd, buf, 8);
-	PRINT("%s: buf %s, ret %d.\n", buf, ret);
+	PRINT("%s: buf %s, ret %d.\n", __func__, buf, ret);
 }
 
 /**
