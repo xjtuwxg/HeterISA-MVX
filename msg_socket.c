@@ -126,16 +126,26 @@ void process_data(int fd)
 	msg_t *new_msg = malloc(sizeof(msg_t));
 
 	//MSG_PRINT("Process data on fd %d\n", fd);
-	cnt = read(fd, buf, sizeof(buf)-1);
-	buf[cnt] = 0;
-	close(fd);
+	//cnt = read(fd, buf, sizeof(buf)-1);
 
-	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__, buf, cnt);
+	/* Read the msg_t from socket fd: first read syscall & len, then read
+	 * the message buffer */
+	cnt = read(fd, buf, 8);
+	memcpy(new_msg, buf, 8);
+	MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
+		  new_msg->syscall, new_msg->len);
+	cnt = read(fd, buf, new_msg->len);
+	memcpy(new_msg->buf, buf, new_msg->len);
+	new_msg->buf[cnt] = 0;
+	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
+		  new_msg->buf, cnt);
+	//close(fd);
+	ringbuf_add(ringbuf, new_msg);
+
 	// copy data to global message
-	memcpy(new_msg->buf, buf, cnt);
-	new_msg->len = cnt;
-	sem_post(&msg.lock);
-	ringbuf
+	//memcpy(new_msg->buf, buf, cnt);
+	//new_msg->len = cnt;
+	//sem_post(&msg.lock);
 
 	//sem_getvalue(&msg.lock, &cnt);
 	//PRINT("sem lock %ld\n", cnt);

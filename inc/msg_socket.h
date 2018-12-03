@@ -37,10 +37,10 @@ struct epoll_event events[MAXEVENTS];
 int listenfd, efd;
 
 typedef struct _message_t {
+	long syscall;	// 8 bytes
+	long len;	// 8 bytes
 	char buf[MSG_SIZE];
-	sem_t lock;
-	size_t len;
-	long syscall;
+	//sem_t lock;
 	//int owner;
 } msg_t;
 
