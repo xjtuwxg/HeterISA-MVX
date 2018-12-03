@@ -31,10 +31,13 @@ void post_syscall(long syscall, long result)
 {
     syscall_entry_t ent = syscalls[syscall];
 
+    PRINT(" = 0x%lx\n", result);
+#if 0
     if (ent.name != 0) {
         /* Print system call result */
         PRINT(" = 0x%lx\n", result);
     }
+#endif
 }
 
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
@@ -60,7 +63,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 	case SYS_epoll_pwait:
 #if __x86_64__
 		{
-			msg_epoll_t epmsg;
+			//msg_epoll_t epmsg;
 			struct epoll_event events[16];
 
 			sem_getvalue(&msg.lock, &val);
@@ -97,9 +100,13 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	switch (syscall_num) {
 	case SYS_accept:
 #if __x86_64__
+		sem_getvalue(&msg.lock, &val);
+		PRINT("sys_accept before sem_wait. %d\n", val);
 		sem_wait(&msg.lock);
+		sem_getvalue(&msg.lock, &val);
+		PRINT("after sem_wait. %d\n", val);
 		sscanf(msg.buf, "%llx", &master_retval);
-		PRINT("%s: msg.buf: 0x%s, msg.len: %d. master_retval %lld\n",
+		PRINT("%s: msg.buf: 0x%s, msg.len: %lu. master_retval %lld\n",
 		      __func__, msg.buf, msg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
@@ -144,16 +151,16 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
-	msg_epoll_t epoll_msg;		// contains arch specific code for universal epoll_event.
+	//msg_epoll_t epoll_msg;		// contains arch specific code for universal epoll_event.
 	struct epoll_event *events;	// 12 bytes on x86, 16 bytes on arm
 	struct epoll_event_x86 *x86_events;
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
 
-	epoll_msg.epfd = args[0];
-	epoll_msg.event_num = retval;
-	epoll_msg.maxevents = args[2];
-	epoll_msg.timeout = args[3];
+	//epoll_msg.epfd = args[0];
+	//epoll_msg.event_num = retval;
+	//epoll_msg.maxevents = args[2];
+	//epoll_msg.timeout = args[3];
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
 	events = malloc(events_len);
@@ -165,8 +172,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	get_child_data(pid, (char*)events, args[1], events_len);
 	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
 	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
-	PRINT("epoll: events 0x%x, data u64 0x%lx\n",
-	      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
+	//PRINT("epoll: events 0x%x, data u64 0x%lx\n",
+	//      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
 	// Convert epoll_data to x86 format.
 	for (i = 0; i < retval; i++) {
 		x86_events[i].events = events[i].events;
@@ -174,8 +181,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	}
 	//ret = write(fd, (void*)&epoll_msg, sizeof(int)*4+events_len);
 	ret = write(fd, (void*)x86_events, x86_epoll_len);
-	PRINT("!!!! epoll_pwait write ret: %d. errno %d\n",
-	      ret, errno);
+	PRINT("<%s> epoll_pwait write ret: %d. errno %d\n",
+	      __func__, ret, errno);
 	free(events);
 	free(x86_events);
 }
@@ -187,8 +194,8 @@ static inline void master_sys_accept(pid_t pid, int fd, long long args[],
 	char buf[20];
 	PRINT("retval: 0x%llx\n", retval);
 	sprintf(buf, "%llx", retval);
-	ret = write(fd, buf, 16);
-	PRINT("%s: buf %s, ret %d. len %u\n", __func__, buf, ret, strlen(buf));
+	ret = write(fd, buf, strlen(buf));
+	PRINT("%s: buf %s, ret %d. len %lu\n", __func__, buf, ret, strlen(buf));
 }
 
 /**

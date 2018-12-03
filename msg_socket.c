@@ -128,7 +128,7 @@ void process_data(int fd)
 	buf[cnt] = 0;
 	close(fd);
 
-	PRINT("msg: %s, cnt: %lu\n", buf, cnt);
+	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__, buf, cnt);
 	// copy data to global message
 	memcpy(msg.buf, buf, cnt);
 	msg.len = cnt;

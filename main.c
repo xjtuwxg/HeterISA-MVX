@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		//post_syscall(syscall_num, syscall_retval);
+		post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
 		/* Master gets the user input, and syncs the value to slave
 		 * variant. */
