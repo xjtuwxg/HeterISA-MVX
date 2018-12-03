@@ -126,7 +126,7 @@ void process_data(int fd)
 	//MSG_PRINT("Process data on fd %d\n", fd);
 	cnt = read(fd, buf, sizeof(buf)-1);
 	buf[cnt] = 0;
-	close(fd);
+	//close(fd);
 
 	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__, buf, cnt);
 	// copy data to global message
