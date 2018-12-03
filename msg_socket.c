@@ -1,5 +1,6 @@
 #include "msg_socket.h"
 #include "debug.h"
+
 int port = 8888;
 
 static int make_socket_non_blocking(int sfd)
@@ -122,6 +123,7 @@ void process_data(int fd)
 	ssize_t cnt;
 	//ssize_t msg_len = 0;
 	char buf[512];
+	msg_t *new_msg = malloc(sizeof(msg_t));
 
 	//MSG_PRINT("Process data on fd %d\n", fd);
 	cnt = read(fd, buf, sizeof(buf)-1);
@@ -130,9 +132,10 @@ void process_data(int fd)
 
 	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__, buf, cnt);
 	// copy data to global message
-	memcpy(msg.buf, buf, cnt);
-	msg.len = cnt;
+	memcpy(new_msg->buf, buf, cnt);
+	new_msg->len = cnt;
 	sem_post(&msg.lock);
+	ringbuf
 
 	//sem_getvalue(&msg.lock, &cnt);
 	//PRINT("sem lock %ld\n", cnt);
@@ -187,13 +190,17 @@ void msg_thread_init(void)
 {
 	pthread_t tid;
 
+	// init the ring buffer
+	ringbuf = ringbuf_new();
+	if (!ringbuf) FATAL("Ring buffer created failed\n");
+
 	// init the global message msg.
 	memset(msg.buf, 0, sizeof(msg.buf));
 	sem_init(&msg.lock, 0, 0);
 
 	// create the messaging thread.
 	if (pthread_create(&tid, NULL, msg_thread_main, NULL)) {
-		FATAL("pthread create failed\n");
+		FATAL("Pthread create failed\n");
 	}
 	//PRINT("%s should never return!\n", __func__);
 	PRINT("pthread created\n");

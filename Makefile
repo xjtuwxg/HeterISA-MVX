@@ -1,14 +1,15 @@
 .POSIX:
 CC     = cc
-CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200112L -Wall -Wextra -O3 -g3 \
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200112L -Wall -O3 -g3 -g -funwind-tables -I inc \
 		-Wno-missing-field-initializers -Wno-missing-braces -Wno-unused-parameter \
-		-g -funwind-tables -I inc
+		-Wno-unused-variable -Wextra
+		
 LDFLAGS= -lpthread
 
 all: clean mvx_monitor testall
 
-mvx_monitor: main.c monitor.c msg_socket.c ptrace.c
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c monitor.c msg_socket.c ptrace.c $(LDFLAGS)
+mvx_monitor: main.c monitor.c msg_socket.c ptrace.c ringbuf.c
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c monitor.c msg_socket.c ptrace.c ringbuf.c $(LDFLAGS)
 
 testall:
 	$(MAKE) -C test

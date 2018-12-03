@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <arpa/inet.h>		// inet_pton
 
+#include "ringbuf.h"		// ringbuf_t
+
 #define MAXEVENTS	64
 #define MSG_SIZE	4032
 
@@ -38,10 +40,13 @@ typedef struct _message_t {
 	char buf[MSG_SIZE];
 	sem_t lock;
 	size_t len;
+	long syscall;
 	//int owner;
 } msg_t;
 
-msg_t msg;
+//msg_t msg;
+
+ringbuf_t ringbuf;
 
 //#if __aarch64__
 struct epoll_event_x86 {
