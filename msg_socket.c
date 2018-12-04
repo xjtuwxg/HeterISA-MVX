@@ -27,13 +27,16 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 {
 	if (rb->size >= MAX_RINGBUF_SIZE) return -1;
 
-	// fill the ringbuf
+	/* Fill the ringbuf */
 	rb->msg[rb->head] = msg;
-	// advance the head index
+	/* Advance the head indexa*/
 	if (rb->head == MAX_RINGBUF_SIZE-1) rb->head = 0;
 	else rb->head++;
-	// increase the size
+	/* Increase the size */
 	rb->size++;
+
+	/* WARN: This operation increase the global semaphore. To work
+	 * correctly, call sem_wait first before calling ringbuf_del() */
 	sem_post(&rb->sem);
 
 	return 0;
@@ -48,14 +51,17 @@ int ringbuf_del(ringbuf_t rb, msg_t *msg)
 
 	if (rb->size == 0) return -1;
 
-	// retrive the msg value from ringbuf, and copy to the param msg.
+	/* Retrive the msg value from ringbuf, and copy to the param msg. */
 	del_msg = rb->msg[rb->tail];
 	memcpy(msg, del_msg, del_msg->len + 16);
-	// advance the tail index
+	/* Advance the tail index */
 	if (rb->tail == MAX_RINGBUF_SIZE-1) rb->tail = 0;
 	else rb->tail++;
-	// decrease the size
+	/* Decrease the size */
 	rb->size--;
+
+	/* Remove the allocated memory */
+	free(del_msg);
 
 	return 0;
 }
@@ -93,7 +99,6 @@ int create_client_socket(char *ip)
 	}
 	memset(&serveraddr, 0, sizeof(serveraddr));
 	serveraddr.sin_family = AF_INET;
-	//serveraddr.sin_addr.s_addr = INADDR_ANY;
 	serveraddr.sin_port = htons(port);
 	if (inet_pton(AF_INET, ip, &serveraddr.sin_addr) < 0) {
 		fprintf(stderr, "convert serveraddr error\n");
@@ -153,14 +158,7 @@ static int accept_connection(int listenfd, int epollfd)
 	char hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
 	struct epoll_event event;
 
-	//MSG_PRINT("%s: listenfd: %d\n", __FUNCTION__, listenfd);
-
 	while ((connfd = accept(listenfd, &in_addr, &in_len)) != -1) {
-		if (getnameinfo(&in_addr, in_len, hbuf, sizeof(hbuf), pbuf,
-				sizeof(pbuf), NI_NUMERICHOST) == 0) {
-			//MSG_PRINT("accept conn on fd %d, host: %s, port: %s\n",
-			//       connfd, hbuf, pbuf);
-		}
 		/* non blocking socket */
 		if (make_socket_non_blocking(connfd) == -1) {
 			abort();
@@ -180,12 +178,8 @@ static int accept_connection(int listenfd, int epollfd)
 void process_data(int fd)
 {
 	ssize_t cnt;
-	//ssize_t msg_len = 0;
 	char buf[512];
 	msg_t *new_msg = malloc(sizeof(msg_t));
-
-	//MSG_PRINT("Process data on fd %d\n", fd);
-	//cnt = read(fd, buf, sizeof(buf)-1);
 
 	/* Read the msg_t from socket fd: first read syscall & len, then read
 	 * the message buffer */
@@ -204,29 +198,25 @@ void process_data(int fd)
 
 void * msg_thread_main(void *args)
 {
-	/* create socket and listen */
+	/* Create socket and listen */
 	if ((listenfd = create_server_socket()) < 0)
 		abort();
 	if (listen(listenfd, SOMAXCONN) < 0)
 		fprintf(stderr, "listen socket error\n");
 
-	/* create epoll */
+	/* Create epoll */
 	if ((efd = epoll_create1(0)) == -1) {
 		FATAL("epoll create error");
 	}
 	event.data.fd = listenfd;
 	event.events = EPOLLIN | EPOLLET;
-	//event.events = EPOLLIN;
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
-	//MSG_PRINT("listenfd: %d, efd: %d. MAXEVENTS %d\n",
-	//       listenfd, efd, MAXEVENTS);
 
 	while (1) {
 		int nfds, i;
 		/* nfds, events are output values */
 		nfds = epoll_wait(efd, events, MAXEVENTS, -1);
-		//MSG_PRINT("# of events(fds): %d\n", nfds);
 
 		for (i = 0; i < nfds; i++) {
 			if (listenfd == events[i].data.fd) {
@@ -238,7 +228,7 @@ void * msg_thread_main(void *args)
 				fprintf(stderr, "epoll error\n");
 				close(events[i].data.fd);
 			} else {
-				/* process data processing on fd */
+				/* Process data processing on fd */
 				process_data(events[i].data.fd);
 			}
 		}
@@ -251,14 +241,11 @@ void msg_thread_init(void)
 {
 	pthread_t tid;
 
-	// init the ring buffer
+	/* Init the ring buffer */
 	ringbuf = ringbuf_new();
 	if (!ringbuf) FATAL("Ring buffer created failed\n");
 
-	// init the global message msg.
-	//memset(msg.buf, 0, sizeof(msg.buf));
-
-	// create the messaging thread.
+	/* Create the messaging thread. */
 	if (pthread_create(&tid, NULL, msg_thread_main, NULL)) {
 		FATAL("Pthread create failed\n");
 	}
