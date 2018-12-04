@@ -3,6 +3,65 @@
 
 int port = 8888;
 
+/* ============== Ring buffer related =============== */
+/**
+ * Create a new ring buffer data structure pointer.
+ * */
+ringbuf_t ringbuf_new(void)
+{
+	ringbuf_t rb = malloc(sizeof(struct ringbuf_t));
+	if (rb) {
+		memset(rb->msg, 0, sizeof(msg_t *)*MAX_RINGBUF_SIZE);
+		rb->head = rb->tail = 0;
+		rb->size = 0;
+		sem_init(&rb->sem, 0, 0);
+		return rb;
+	}
+	return 0;
+}
+
+/**
+ * Add msg to the ringbuf rb.
+ * */
+int ringbuf_add(ringbuf_t rb, msg_t *msg)
+{
+	if (rb->size >= MAX_RINGBUF_SIZE) return -1;
+
+	// fill the ringbuf
+	rb->msg[rb->head] = msg;
+	// advance the head index
+	if (rb->head == MAX_RINGBUF_SIZE-1) rb->head = 0;
+	else rb->head++;
+	// increase the size
+	rb->size++;
+	sem_post(&rb->sem);
+
+	return 0;
+}
+
+/**
+ * Del msg from the ringbuf rb.
+ * */
+int ringbuf_del(ringbuf_t rb, msg_t *msg)
+{
+	msg_t *del_msg;
+
+	if (rb->size == 0) return -1;
+
+	// retrive the msg value from ringbuf, and copy to the param msg.
+	del_msg = rb->msg[rb->tail];
+	memcpy(msg, del_msg, del_msg->len + 16);
+	// advance the tail index
+	if (rb->tail == MAX_RINGBUF_SIZE-1) rb->tail = 0;
+	else rb->tail++;
+	// decrease the size
+	rb->size--;
+
+	return 0;
+}
+
+
+/* ============== Socket related =============== */
 static int make_socket_non_blocking(int sfd)
 {
 	int flags;
@@ -139,8 +198,10 @@ void process_data(int fd)
 	new_msg->buf[cnt] = 0;
 	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
 		  new_msg->buf, cnt);
-	//close(fd);
+	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
+
+	//close(fd);
 
 	// copy data to global message
 	//memcpy(new_msg->buf, buf, cnt);
@@ -205,19 +266,12 @@ void msg_thread_init(void)
 	if (!ringbuf) FATAL("Ring buffer created failed\n");
 
 	// init the global message msg.
-	memset(msg.buf, 0, sizeof(msg.buf));
-	sem_init(&msg.lock, 0, 0);
+	//memset(msg.buf, 0, sizeof(msg.buf));
 
 	// create the messaging thread.
 	if (pthread_create(&tid, NULL, msg_thread_main, NULL)) {
 		FATAL("Pthread create failed\n");
 	}
-	//PRINT("%s should never return!\n", __func__);
 	PRINT("pthread created\n");
-}
-
-void msg_wait_recv(msg_t *msg)
-{
-	sem_wait(&msg->lock);
 }
 

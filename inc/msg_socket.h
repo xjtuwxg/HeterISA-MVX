@@ -16,8 +16,6 @@
 #include <sys/types.h>
 #include <arpa/inet.h>		// inet_pton
 
-#include "ringbuf.h"		// ringbuf_t
-
 #define MAXEVENTS	64
 #define MSG_SIZE	4032
 
@@ -31,31 +29,40 @@
 #define NI_NUMERICHOST	1
 #endif
 
-typedef struct sockaddr SA;
-struct epoll_event event;
-struct epoll_event events[MAXEVENTS];
-int listenfd, efd;
+/* Definations for ring buffer. */
+#define MAX_RINGBUF_SIZE	256
 
+typedef struct sockaddr SA;
+
+/**
+ * The message data structure, also the entry of ringbuf_t
+ * */
 typedef struct _message_t {
 	long syscall;	// 8 bytes
 	long len;	// 8 bytes
 	char buf[MSG_SIZE];
-	//sem_t lock;
-	//int owner;
 } msg_t;
 
-//msg_t msg;
 
-ringbuf_t ringbuf;
+/**
+ * head: index indicate the index of the next available msg slot for
+ * the ring buffer message
+ * */
+struct ringbuf_t {
+	msg_t *msg[MAX_RINGBUF_SIZE];
+	size_t head, tail;
+	size_t size;
+	sem_t sem;
+};
+typedef struct ringbuf_t *ringbuf_t;
 
-//#if __aarch64__
+/* Epoll event in x86 format */
 struct epoll_event_x86 {
 	uint32_t events;
 	epoll_data_t data;
 } __attribute__ ((__packed__));
-//#endif
 
-typedef struct _message_epoll_t {
+/*typedef struct _message_epoll_t {
 	int epfd;
 	int event_num;
 	int maxevents;
@@ -68,12 +75,27 @@ typedef struct _message_epoll_t {
 	// to 12 bytes.
 	struct epoll_event_x86 events[MAXEVENTS];
 #endif
-} msg_epoll_t;
+} msg_epoll_t;*/
 
+/**
+ * Global variables for msg_socket.c (the message layer)
+ * */
+int listenfd, efd;
+struct epoll_event event;
+struct epoll_event events[MAXEVENTS];
+ringbuf_t ringbuf;	// server/receiver side ring buffer
+msg_t msg;		// client/sender side msg data struct
+
+
+/* Socket related interfaces */
 int create_client_socket(char *ip);
 int create_server_socket(void);
 
 void msg_thread_init(void);
-void msg_wait_recv(msg_t *msg);
+
+/* Ring buffer related interfaces */
+ringbuf_t ringbuf_new(void);
+int ringbuf_add(ringbuf_t rb, msg_t *msg);
+int ringbuf_del(ringbuf_t rb, msg_t *msg);
 
 #endif

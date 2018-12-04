@@ -83,7 +83,6 @@ int main(int argc, char **argv)
 
 #ifdef __x86_64__
 		/* Follower variant has to wait the master variant' input */
-		//wait_master_syncpoint(pid, syscall_num, args);
 		follower_wait_pre_syscall(pid, syscall_num, args);
 #endif
 		/* Run system call and stop on exit */
