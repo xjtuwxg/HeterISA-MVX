@@ -94,9 +94,11 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	switch (syscall_num) {
 	case SYS_accept:
 	case SYS_fcntl:
+	case SYS_epoll_ctl:
 #if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
-		PRINT("sys_accept before sem_wait. %d\n", val);
+		PRINT("follower is handling [%3ld] before sem_wait. %d\n",
+		      syscall_num, val);
 		sem_wait(&ringbuf->sem);
 		sem_getvalue(&ringbuf->sem, &val);
 		PRINT("after sem_wait. %d\n", val);
