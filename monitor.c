@@ -155,6 +155,9 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
 
+	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
+	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
+
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
 	events = malloc(events_len);
@@ -162,8 +165,6 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 
 	// Get the child epoll_event data on arm.
 	get_child_data(pid, (char*)events, args[1], events_len);
-	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
-	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
 	for (i = 0; i < retval; i++) {
 		x86_events[i].events = events[i].events;
 		x86_events[i].data = events[i].data;
@@ -175,8 +176,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
 	//ret = write(fd, (void*)x86_events, x86_epoll_len);
-	PRINT("<%s> epoll_pwait write ret: %d. errno %d\n",
-	      __func__, ret, errno);
+	PRINT("<%s> epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
+	      __func__, ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
 }
@@ -197,7 +198,8 @@ static inline void master_sys_accept(pid_t pid, int fd, long long args[],
 	msg.len = strlen(buf);
 	memcpy(msg.buf, buf, msg.len);
 	ret = write(fd, &msg, msg.len+16);
-	PRINT("%s: buf %s, ret %d. len %lu\n", __func__, buf, ret, strlen(buf));
+	PRINT("%s: buf %s, ret %d. len %lu. %lu\n",
+	      __func__, buf, ret, strlen(buf), sizeof(msg));
 }
 
 /**
