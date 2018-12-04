@@ -91,6 +91,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	int val;
 	long long master_retval;
 	msg_t rmsg;
+
 	switch (syscall_num) {
 	case SYS_accept:
 	case SYS_fcntl:
@@ -125,9 +126,9 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	int child_fd = args[0];
 	long long child_buf = args[1];
 	size_t child_cnt = args[2];
-	//size_t child_cnt = retval;
 	char *monitor_buf = NULL;
 	int ret = 0;
+	msg_t rmsg;
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
@@ -136,7 +137,11 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
 		      child_cnt);
-		ret = write(fd, monitor_buf, retval);
+		msg.syscall = 0;	// SYS_read x86
+		msg.len = retval;
+		memcpy(msg.buf, monitor_buf, retval);
+		ret = write(fd, (void*)&msg, retval+16);
+		//ret = write(fd, monitor_buf, retval);
 		PRINT("!!!! write ret: %d. retval: %lld. errno %d\n",
 		      ret, retval, errno);
 	}
