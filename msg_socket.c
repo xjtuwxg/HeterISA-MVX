@@ -189,8 +189,8 @@ void process_data(int fd)
 
 	/* Read the msg_t from socket fd: first read syscall & len, then read
 	 * the message buffer */
-	cnt = read(fd, buf, 8);
-	memcpy(new_msg, buf, 8);
+	cnt = read(fd, buf, 16);
+	memcpy(new_msg, buf, 16);
 	MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
 		  new_msg->syscall, new_msg->len);
 	cnt = read(fd, buf, new_msg->len);
@@ -200,16 +200,6 @@ void process_data(int fd)
 		  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
-
-	//close(fd);
-
-	// copy data to global message
-	//memcpy(new_msg->buf, buf, cnt);
-	//new_msg->len = cnt;
-	//sem_post(&msg.lock);
-
-	//sem_getvalue(&msg.lock, &cnt);
-	//PRINT("sem lock %ld\n", cnt);
 }
 
 void * msg_thread_main(void *args)

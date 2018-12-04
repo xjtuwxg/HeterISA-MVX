@@ -93,6 +93,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	msg_t rmsg;
 	switch (syscall_num) {
 	case SYS_accept:
+	case SYS_fcntl:
 #if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
 		PRINT("sys_accept before sem_wait. %d\n", val);
@@ -111,6 +112,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 }
 
 
+/* ===== Those master syscall handlers only care about the params. ===== */
 /**
  * Inline funtion to handle SYS_read on master node.
  *    ssize_t read(int fd, void *buf, size_t count)
@@ -182,6 +184,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	free(x86_events);
 }
 
+/* ===== Those master syscall handlers only care about the retval. ===== */
 /**
  * Inline funtion to handle SYS_accept on master node.
  *    int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
@@ -191,10 +194,26 @@ static inline void master_sys_accept(pid_t pid, int fd, long long args[],
 {
 	int ret = 0;
 	char buf[20];
-	PRINT("retval: 0x%llx\n", retval);
+	PRINT("master [accept] retval: 0x%llx\n", retval);
 	sprintf(buf, "%llx", retval);
 
 	msg.syscall = 43;	// SYS_accept x86
+	msg.len = strlen(buf);
+	memcpy(msg.buf, buf, msg.len);
+	ret = write(fd, &msg, msg.len+16);
+	PRINT("%s: buf %s, ret %d. len %lu. %lu\n",
+	      __func__, buf, ret, strlen(buf), sizeof(msg));
+}
+
+static inline void master_sys_fcntl(pid_t pid, int fd, long long args[],
+		      long long retval)
+{
+	int ret = 0;
+	char buf[20];
+	PRINT("master [fcntl] retval: 0x%llx\n", retval);
+	sprintf(buf, "%llx", retval);
+
+	msg.syscall = 72;	// SYS_fcntl x86
 	msg.len = strlen(buf);
 	memcpy(msg.buf, buf, msg.len);
 	ret = write(fd, &msg, msg.len+16);
@@ -219,6 +238,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		break;
 	case SYS_accept:
 		master_sys_accept(pid, fd, args, retval);
+		break;
+	case SYS_fcntl:
+		master_sys_fcntl(pid, fd, args, retval);
 		break;
 	}
 
