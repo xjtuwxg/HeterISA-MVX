@@ -99,11 +99,11 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_epoll_ctl:
 #if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
-		//PRINT("follower is handling [%3ld] before sem_wait. %d\n",
-		//      syscall_num, val);
+		PRINT("follower is handling [%3ld] before sem_wait. %d\n",
+		      syscall_num, val);
 		sem_wait(&ringbuf->sem);
 		sem_getvalue(&ringbuf->sem, &val);
-		//PRINT("after sem_wait. %d\n", val);
+		PRINT("after sem_wait. %d\n", val);
 
 		ringbuf_del(ringbuf, &rmsg);
 		sscanf(rmsg.buf, "%llx", &master_retval);
@@ -144,6 +144,7 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		msg.len = retval;
 		memcpy(msg.buf, monitor_buf, retval);
 		ret = write(fd, (void*)&msg, retval+16);
+		fflush(fd);
 		//} else {
 		//	sprintf(buf, "%llx", retval);
 		//	msg.len = strlen(buf);
@@ -192,6 +193,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	msg.len = x86_epoll_len;
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
+	fflush(fd);
 	//ret = write(fd, (void*)x86_events, x86_epoll_len);
 	PRINT("<%s> epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
 	      __func__, ret, errno, x86_epoll_len, events_len);
@@ -233,6 +235,7 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 	msg.len = strlen(buf);
 	memcpy(msg.buf, buf, msg.len);
 	ret = write(fd, &msg, msg.len+16);
+	fflush(fd);
 
 	PRINT("%s: buf %s, ret %d. len %lu. %lu\n",
 	      __func__, buf, ret, strlen(buf), sizeof(msg));

@@ -202,7 +202,8 @@ void process_data(int fd)
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
-	MSG_PRINT("%s: rb size %lu\n", __func__, ringbuf->size)
+	MSG_PRINT("%s: rb size %lu, rb head %lu, rb tail %lu\n", __func__,
+		  ringbuf->size, ringbuf->head, ringbuf->tail);
 }
 
 /**
