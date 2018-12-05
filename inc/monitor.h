@@ -32,7 +32,6 @@ typedef struct _syscall_entry {
     } sc_arg;
 } syscall_entry_t;
 
-
 /* define the "sensitive" syscall number, params that we want to intercept */
 static const syscall_entry_t syscalls[] = {
 /* syscall entries are from "strace/linux/x86_64/syscallent.h" */
@@ -42,6 +41,15 @@ static const syscall_entry_t syscalls[] = {
 /* syscall entries are from "strace/linux/64/syscallent.h" */
 #ifdef __aarch64__
 #include <arm64/syscallent.h>
+#endif
+};
+
+static const char* syscall_name[] = {
+#ifdef __x86_64__
+#include <x86/syscall.h>
+#endif
+#ifdef __aarch64__
+#include <arm64/syscall.h>
 #endif
 };
 

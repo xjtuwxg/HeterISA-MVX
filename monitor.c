@@ -9,7 +9,7 @@ void pre_syscall(long syscall, long long args[])
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
-    fprintf(stderr, "[%3ld]\n", syscall);
+    fprintf(stderr, "[%3ld] %s\n", syscall, syscall_name[syscall]);
 #if 0
     if (ent.name != 0) {
 	int nargs = ent.nargs;
@@ -58,6 +58,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
 			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
+			if (rmsg.len < 0) rmsg.len = 0;
 			update_child_data(pid, args[1], rmsg.buf, rmsg.len);
 			syscall_getpid(pid);
 		}
@@ -129,6 +130,7 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	char *monitor_buf = NULL;
 	int ret = 0;
 	msg_t rmsg;
+	char buf[20];
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
@@ -138,9 +140,15 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
 		      child_cnt);
 		msg.syscall = 0;	// SYS_read x86
+		//if (retval >= 0) {
 		msg.len = retval;
 		memcpy(msg.buf, monitor_buf, retval);
 		ret = write(fd, (void*)&msg, retval+16);
+		//} else {
+		//	sprintf(buf, "%llx", retval);
+		//	msg.len = strlen(buf);
+		//	memcpy(msg.buf, buf, msg.len);
+		//}
 		//ret = write(fd, monitor_buf, retval);
 		PRINT("!!!! write ret: %d. retval: %lld. errno %d\n",
 		      ret, retval, errno);
