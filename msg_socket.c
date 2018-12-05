@@ -66,6 +66,10 @@ int ringbuf_del(ringbuf_t rb, msg_t *msg)
 	return 0;
 }
 
+static inline size_t ringbuf_size(ringbuf_t rb)
+{
+	return rb->size;
+}
 
 /* ============== Socket related =============== */
 static int make_socket_non_blocking(int sfd)
@@ -175,6 +179,10 @@ static int accept_connection(int listenfd, int epollfd)
 	return 0;
 }
 
+/**
+ * Data processing function.
+ * Copy the incoming data into the ring buffer.
+ * */
 void process_data(int fd)
 {
 	ssize_t cnt;
@@ -185,17 +193,21 @@ void process_data(int fd)
 	 * the message buffer */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
-		  new_msg->syscall, new_msg->len);
+	//MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
+	//	  new_msg->syscall, new_msg->len);
 	cnt = read(fd, buf, new_msg->len);
 	memcpy(new_msg->buf, buf, new_msg->len);
 	new_msg->buf[cnt] = 0;
-	MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
-		  new_msg->buf, cnt);
+	//MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
+	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
+	MSG_PRINT("%s: rb size %lu\n", __func__, ringbuf->size)
 }
 
+/**
+ * The main thread for receiving data.
+ * */
 void * msg_thread_main(void *args)
 {
 	/* Create socket and listen */
@@ -237,6 +249,9 @@ void * msg_thread_main(void *args)
 	close(listenfd);
 }
 
+/**
+ * Initiate the msg receiver thread.
+ * */
 void msg_thread_init(void)
 {
 	pthread_t tid;

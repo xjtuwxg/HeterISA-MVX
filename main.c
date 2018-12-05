@@ -27,14 +27,12 @@
 #include "ptrace.h"
 #include "monitor.h"
 
-#if 0
-#define PTR	0
-#define INT	1
-#define UINT	2
-#endif
-
 #define IP_CLIENT	"10.4.4.16"
 
+/**
+ * Main function for multi-ISA MVX
+ * Use: ./mvx_monitor <executable> <args>
+ * */
 int main(int argc, char **argv)
 {
 	int clientfd;
@@ -46,14 +44,14 @@ int main(int argc, char **argv)
 	switch (pid) {
 	    case -1: /* error */
 		FATAL("%s. pid -1", strerror(errno));
-	    case 0:  /* child */
+	    case 0:  /* child, executing the tracee */
 		ptrace(PTRACE_TRACEME, 0, 0, 0);
 		execvp(argv[1], argv + 1);
 		FATAL("%s. child", strerror(errno));
 	}
 
-	/* parent */
-	//sockfd = create_server_socket();
+	/* parent, also the monitor (tracer) */
+	/* Initiate the message thread (both server and client). */
 	msg_thread_init();
 	clientfd = create_client_socket(IP_CLIENT);
 
@@ -107,6 +105,7 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait leader's syscall retval */
 		follower_wait_post_syscall(pid, syscall_num);
+		RAW_PRINT("\n");
 #endif
 	}
 	PRINT("Finish main loop!\n");

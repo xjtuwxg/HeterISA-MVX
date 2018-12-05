@@ -50,10 +50,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 	case SYS_read:	// Wait read buffer sent from master variant.
 		if (args[0] == 5) {
 			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("sys_read before sem_wait. %d\n", val);
+			//PRINT("sys_read before sem_wait. %d\n", val);
 			sem_wait(&ringbuf->sem);
-			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("after sem_wait. %d\n", val);
+			//sem_getvalue(&ringbuf->sem, &val);
+			//PRINT("after sem_wait. %d\n", val);
 
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
@@ -69,10 +69,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			struct epoll_event events[16];
 
 			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
+			//PRINT("sys_epoll_wait before sem_wait. %d\n", val);
 			sem_wait(&ringbuf->sem);
 			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("after sem_wait. %d\n", val);
+			//PRINT("after sem_wait. %d\n", val);
 
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
@@ -99,11 +99,11 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_epoll_ctl:
 #if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
-		PRINT("follower is handling [%3ld] before sem_wait. %d\n",
-		      syscall_num, val);
+		//PRINT("follower is handling [%3ld] before sem_wait. %d\n",
+		//      syscall_num, val);
 		sem_wait(&ringbuf->sem);
 		sem_getvalue(&ringbuf->sem, &val);
-		PRINT("after sem_wait. %d\n", val);
+		//PRINT("after sem_wait. %d\n", val);
 
 		ringbuf_del(ringbuf, &rmsg);
 		sscanf(rmsg.buf, "%llx", &master_retval);
@@ -139,8 +139,8 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
 		      child_cnt);
+		if (retval < 0) { retval = 0; }
 		msg.syscall = 0;	// SYS_read x86
-		//if (retval >= 0) {
 		msg.len = retval;
 		memcpy(msg.buf, monitor_buf, retval);
 		ret = write(fd, (void*)&msg, retval+16);
