@@ -69,10 +69,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			struct epoll_event events[16];
 
 			sem_getvalue(&ringbuf->sem, &val);
-			//PRINT("sys_epoll_wait before sem_wait. %d\n", val);
+			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
 			sem_wait(&ringbuf->sem);
 			sem_getvalue(&ringbuf->sem, &val);
-			//PRINT("after sem_wait. %d\n", val);
+			PRINT("after sem_wait. %d\n", val);
 
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
@@ -135,11 +135,11 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
 	if (child_fd == 5) {
-	//if (child_fd == 0) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
-		      child_cnt);
-		if (retval < 0) { retval = 0; }
+		PRINT("%s. cnt %lld. child_cnt %lu\n", __func__, retval, child_cnt);
+
+		if (retval < 0)  retval = 0;
+
 		msg.syscall = 0;	// SYS_read x86
 		msg.len = retval;
 		memcpy(msg.buf, monitor_buf, retval);
@@ -151,7 +151,7 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		//	memcpy(msg.buf, buf, msg.len);
 		//}
 		//ret = write(fd, monitor_buf, retval);
-		PRINT("!!!! write ret: %d. retval: %lld. errno %d\n",
+		PRINT("write ret: %d. retval: %lld. errno %d\n",
 		      ret, retval, errno);
 	}
 	free(monitor_buf);
@@ -195,8 +195,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
 	fsync(fd);
 	//ret = write(fd, (void*)x86_events, x86_epoll_len);
-	PRINT("<%s> epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
-	      __func__, ret, errno, x86_epoll_len, events_len);
+	PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
+	      ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
 }
