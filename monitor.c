@@ -56,7 +56,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			//PRINT("after sem_wait. %d\n", val);
 
 			ringbuf_del(ringbuf, &rmsg);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
+			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
 			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			if (rmsg.len < 0) rmsg.len = 0;
 			update_child_data(pid, args[1], rmsg.buf, rmsg.len);
@@ -69,7 +69,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			struct epoll_event events[16];
 
 			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
+			PRINT(">>>>> sys_epoll_wait before sem_wait. %d\n", val);
 			sem_wait(&ringbuf->sem);
 			sem_getvalue(&ringbuf->sem, &val);
 			PRINT("after sem_wait. %d\n", val);
@@ -99,7 +99,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_epoll_ctl:
 #if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
-		PRINT("follower is handling [%3ld] before sem_wait. %d\n",
+		PRINT(">>>>> follower is handling [%3ld] before sem_wait. %d\n",
 		      syscall_num, val);
 		sem_wait(&ringbuf->sem);
 		sem_getvalue(&ringbuf->sem, &val);
@@ -253,18 +253,18 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
 		master_sys_read(pid, fd, args, retval);
-		PRINT("master cnt: %d\n", ++cnt);
+		PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
-		PRINT("master cnt: %d\n", ++cnt);
+		PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 	/* The following syscalls only have to send the retval. */
 	case SYS_accept:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 		master_syscall_return(fd, syscall_num, retval);
-		PRINT("master cnt: %d\n", ++cnt);
+		PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 	}
 

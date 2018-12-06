@@ -206,8 +206,8 @@ void process_data(int fd)
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
-	MSG_PRINT("%s: rb size %lu, rb head %lu, rb tail %lu\n", __func__,
-		  ringbuf->size, ringbuf->head, ringbuf->tail);
+	MSG_PRINT("%s: syscall %lu (len %lu), rb head %lu, rb tail %lu\n", __func__,
+		  new_msg->syscall, new_msg->len, ringbuf->head, ringbuf->tail);
 }
 
 /**
