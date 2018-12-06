@@ -195,9 +195,13 @@ void process_data(int fd)
 	memcpy(new_msg, buf, 16);
 	//MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
 	//	  new_msg->syscall, new_msg->len);
-	cnt = read(fd, buf, new_msg->len);
-	memcpy(new_msg->buf, buf, new_msg->len);
-	new_msg->buf[cnt] = 0;
+	if (new_msg->len > 0) {
+		cnt = read(fd, buf, new_msg->len);
+		memcpy(new_msg->buf, buf, new_msg->len);
+		new_msg->buf[cnt] = 0;
+	} else {
+		new_msg->buf[0] = 0;
+	}
 	//MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */

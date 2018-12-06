@@ -237,7 +237,7 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 	ret = write(fd, &msg, msg.len+16);
 	fsync(fd);
 
-	PRINT("%s: buf %s, ret %d. len %lu. %lu\n",
+	PRINT("%s: buf %s, write %d bytes. len %lu. %lu\n",
 	      __func__, buf, ret, strlen(buf), sizeof(msg));
 }
 
@@ -246,21 +246,25 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
  * the result to slaves.
  * Data will be sent with a msg_t data structure (containing syscall,len,buf)
  * */
+static int cnt = 0;
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval)
 {
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
 		master_sys_read(pid, fd, args, retval);
+		PRINT("master cnt: %d\n", ++cnt);
 		break;
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
+		PRINT("master cnt: %d\n", ++cnt);
 		break;
 	/* The following syscalls only have to send the retval. */
 	case SYS_accept:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 		master_syscall_return(fd, syscall_num, retval);
+		PRINT("master cnt: %d\n", ++cnt);
 		break;
 	}
 
