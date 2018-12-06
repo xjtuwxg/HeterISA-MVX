@@ -203,30 +203,13 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
 /**
- * Inline funtion to handle SYS_accept on master node.
- *    int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+ * Inline funtion to handle ret only syscalls on master node.
  * */
-/*static inline void master_sys_accept(pid_t pid, int fd, long long args[],
-		      long long retval)
-{
-	int ret = 0;
-	char buf[20];
-	PRINT("master [accept] retval: 0x%llx\n", retval);
-	sprintf(buf, "%llx", retval);
-
-	msg.syscall = 43;	// SYS_accept x86
-	msg.len = strlen(buf);
-	memcpy(msg.buf, buf, msg.len);
-	ret = write(fd, &msg, msg.len+16);
-	PRINT("%s: buf %s, ret %d. len %lu. %lu\n",
-	      __func__, buf, ret, strlen(buf), sizeof(msg));
-}*/
-
 static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
 	char buf[20];
-	PRINT("master syscall [%3ld] retval: 0x%llx\n", syscall, retval);
+	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
 
 	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
 	 * send it */
@@ -237,8 +220,8 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 	ret = write(fd, &msg, msg.len+16);
 	fsync(fd);
 
-	PRINT("%s: buf %s, write %d bytes. len %lu. %lu\n",
-	      __func__, buf, ret, strlen(buf), sizeof(msg));
+	PRINT("** %s: buf %s, write %d bytes. len %lu.\n",
+	      __func__, buf, ret, strlen(buf));
 }
 
 /**

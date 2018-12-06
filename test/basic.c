@@ -10,9 +10,11 @@ int main()
 	//printf("%s", cmd);
 	//system(cmd);
 
-	printf("Input your name: \n");
-	fflush(stdout);
-	scanf("%s", name);
-	printf("pid: %d. test. Hi %s.\n", getpid(), name);
+	while (1) {
+		printf("Input your name: \n");
+		fflush(stdout);
+		scanf("%s", name);
+		printf("pid: %d. test. Hi %s.\n", getpid(), name);
+	}
 	return 0;
 }
