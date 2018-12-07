@@ -58,11 +58,11 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			else {
 				PRINT("top empty\n");
 			}
+			if (tmsg->len < 0) break;
 
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
 			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
-			if (rmsg.len < 0) rmsg.len = 0;
 			update_child_data(pid, args[1], rmsg.buf, rmsg.len);
 			syscall_getpid(pid);
 		}
@@ -115,6 +115,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
+		break;
+	case SYS_read:
+		PRINT("TODO: should be a negative value\n");
 		break;
 	}
 }

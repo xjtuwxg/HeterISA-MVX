@@ -61,8 +61,19 @@ int main(int argc, char **argv)
 	int terminate = 0;
 	while (!terminate) {
 		/* Enter next system call */
-		if (ptrace_syscall(pid) < 0)
+		//if (ptrace_syscall(pid) < 0)
+		//	FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
+		int status = 0;
+		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
+		PRINT("ptrace status %x. %d, %d, %d, %d\n", status,
+		      WIFEXITED(status), WIFSIGNALED(status),
+		      WIFSTOPPED(status), WSTOPSIG(status));
+		if (WSTOPSIG(status) != 5) {
+			PRINT("Not a sigtrap (%d). See \"man 7 signal\"\n",
+			      WSTOPSIG(status));
+			break;
+		}
 
 		/* Get system call arguments */
 		struct user_regs_struct regs;

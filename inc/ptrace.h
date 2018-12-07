@@ -15,6 +15,7 @@
 #endif
 
 #include <syscall.h>		// SYS_getpid
+#include "debug.h"		// PRINT
 
 union u {
     long val;
@@ -29,6 +30,16 @@ static inline int ptrace_syscall(pid_t pid)
         if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
 		return -1;
         if (waitpid(pid, 0, 0) == -1)
+		return -2;
+	return 0;
+}
+
+static inline int ptrace_syscall_status(pid_t pid, int *status)
+{
+	*status = 0;
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+		return -1;
+        if (waitpid(pid, status, 0) == -1)
 		return -2;
 	return 0;
 }
