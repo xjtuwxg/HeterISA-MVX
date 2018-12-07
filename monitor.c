@@ -10,7 +10,7 @@ void pre_syscall(long syscall, long long args[])
 
     /* current, we want to print the syscall params */
     fprintf(stderr, "[%3ld] %s\n", syscall, syscall_name[syscall]);
-#if 0
+#if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
@@ -48,12 +48,16 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 	msg_t rmsg;
 	switch (syscall_num) {
 	case SYS_read:	// Wait read buffer sent from master variant.
-		if (args[0] == 5) {
-			sem_getvalue(&ringbuf->sem, &val);
-			//PRINT("sys_read before sem_wait. %d\n", val);
+		//if (args[0] == 0) {
+		{
 			sem_wait(&ringbuf->sem);
-			//sem_getvalue(&ringbuf->sem, &val);
-			//PRINT("after sem_wait. %d\n", val);
+			msg_t *tmsg = ringbuf_gettop(ringbuf);
+			if (tmsg) {
+				PRINT("syscall %ld, len %ld\n", tmsg->syscall, tmsg->len);
+			}
+			else {
+				PRINT("top empty\n");
+			}
 
 			ringbuf_del(ringbuf, &rmsg);
 			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
@@ -138,19 +142,18 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s. cnt %lld. child_cnt %lu\n", __func__, retval, child_cnt);
 
-		if (retval < 0)  retval = 0;
-
-		msg.syscall = 0;	// SYS_read x86
-		msg.len = retval;
-		memcpy(msg.buf, monitor_buf, retval);
-		ret = write(fd, (void*)&msg, retval+16);
-		fsync(fd);
-		//} else {
-		//	sprintf(buf, "%llx", retval);
-		//	msg.len = strlen(buf);
-		//	memcpy(msg.buf, buf, msg.len);
-		//}
-		//ret = write(fd, monitor_buf, retval);
+		if (retval > 0) {
+			msg.syscall = 0;	// SYS_read x86
+			msg.len = retval;
+			memcpy(msg.buf, monitor_buf, retval);
+			ret = write(fd, (void*)&msg, retval+16);
+			fsync(fd);
+		} else {
+			sprintf(buf, "%llx", retval);
+			msg.len = strlen(buf);
+			memcpy(msg.buf, buf, msg.len);
+		}
+		ret = write(fd, monitor_buf, retval);
 		PRINT("write ret: %d. retval: %lld. errno %d\n",
 		      ret, retval, errno);
 	}

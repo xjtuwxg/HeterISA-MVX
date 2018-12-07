@@ -66,10 +66,6 @@ int ringbuf_del(ringbuf_t rb, msg_t *msg)
 	return 0;
 }
 
-static inline size_t ringbuf_size(ringbuf_t rb)
-{
-	return rb->size;
-}
 
 /* ============== Socket related =============== */
 static int make_socket_non_blocking(int sfd)
@@ -206,8 +202,9 @@ void process_data(int fd)
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
-	MSG_PRINT("%s: syscall %lu (len %lu), rb head %lu, rb tail %lu\n", __func__,
-		  new_msg->syscall, new_msg->len, ringbuf->head, ringbuf->tail);
+	MSG_PRINT("%s: syscall %lu (len %lu), rb head %lu, rb tail %lu. size %lu\n",
+		  __func__, new_msg->syscall, new_msg->len,
+		  ringbuf->head, ringbuf->tail, ringbuf->size);
 }
 
 /**

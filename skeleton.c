@@ -22,12 +22,9 @@
 #include <sys/reg.h>		// ORIG_RAX
 #endif
 
-#include "msg_socket.h"
 #include "debug.h"		// FATAL & PRINT
 #include "ptrace.h"
 #include "monitor.h"
-
-#define IP_CLIENT	"10.4.4.16"
 
 /**
  * Main function for multi-ISA MVX
@@ -51,9 +48,6 @@ int main(int argc, char **argv)
 	}
 
 	/* parent, also the monitor (tracer) */
-	/* Initiate the message thread (both server and client). */
-	msg_thread_init();
-	clientfd = create_client_socket(IP_CLIENT);
 
 	waitpid(pid, 0, 0); // sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
@@ -71,22 +65,17 @@ int main(int argc, char **argv)
 		long long syscall_retval;
 
 		syscall_num = get_regs_args(pid, &regs, args);
-		PRINT("[before syscall], ip: 0x%llx\n", regs.rip);
 		if (syscall_num == -1) {
 			PRINT("syscall #%ld, terminate\n",
 			      syscall_num);
-			PRINT("regs rax 0x%llx, 0x%llx, ip 0x%llx\n",
-			      regs.orig_rax, regs.rax, regs.rip);
+			PRINT("regs rax 0x%llx 0x%llx\n", regs.orig_rax, regs.rax);;
 			//PRINT("0x%lx 0x%lx 0x%lx");
 			break;
 		}
 
+		PRINT("[before syscall] [ip] 0x%llx\n", regs.rip);
 		pre_syscall(syscall_num, args);
 
-#ifdef __x86_64__
-		/* Follower variant has to wait the master variant' input */
-		follower_wait_pre_syscall(pid, syscall_num, args);
-#endif
 		/* Run system call and stop on exit */
 		if (ptrace_syscall(pid) < 0)
 			FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
@@ -100,17 +89,7 @@ int main(int argc, char **argv)
 		}
 
 		post_syscall(syscall_num, syscall_retval);
-#ifdef __aarch64__
-		/* Master gets the user input, and syncs the value to slave
-		 * variant. */
-		master_syncpoint(pid, clientfd, syscall_num, args,
-				 syscall_retval);
-#endif
-#ifdef __x86_64__
-		/* Follower wants to wait leader's syscall retval */
-		follower_wait_post_syscall(pid, syscall_num);
 		RAW_PRINT("\n");
-#endif
 	}
 	PRINT("Finish main loop!\n");
 }

@@ -62,21 +62,6 @@ struct epoll_event_x86 {
 	epoll_data_t data;
 } __attribute__ ((__packed__));
 
-/*typedef struct _message_epoll_t {
-	int epfd;
-	int event_num;
-	int maxevents;
-	int timeout;
-#if __x86_64__
-	struct epoll_event events[MAXEVENTS];
-#endif
-#if __aarch64__
-	// In order to pass epoll_event correctly on x86, we need to convert it
-	// to 12 bytes.
-	struct epoll_event_x86 events[MAXEVENTS];
-#endif
-} msg_epoll_t;*/
-
 /**
  * Global variables for msg_socket.c (the message layer)
  * */
@@ -97,5 +82,25 @@ void msg_thread_init(void);
 ringbuf_t ringbuf_new(void);
 int ringbuf_add(ringbuf_t rb, msg_t *msg);
 int ringbuf_del(ringbuf_t rb, msg_t *msg);
+
+static inline size_t ringbuf_size(ringbuf_t rb)
+{
+	return rb->size;
+}
+
+static inline int isEmpty(ringbuf_t rb)
+{
+	if (rb->size == 0) return 1;
+	else return 0;
+}
+
+static inline msg_t* ringbuf_gettop(ringbuf_t rb)
+{
+	if (isEmpty(rb)) {
+		return 0;
+	}
+	if (rb->head == 0) return rb->msg[MAX_RINGBUF_SIZE-1];
+	else return rb->msg[rb->head-1];
+}
 
 #endif
