@@ -71,12 +71,12 @@ int main(int argc, char **argv)
 		long long syscall_retval;
 
 		syscall_num = get_regs_args(pid, &regs, args);
-		PRINT("[before syscall], ip: 0x%llx\n", regs.rip);
+		//PRINT("[before syscall], ip: 0x%llx\n", regs.rip);
 		if (syscall_num == -1) {
 			PRINT("syscall #%ld, terminate\n",
 			      syscall_num);
-			PRINT("regs rax 0x%llx, 0x%llx, ip 0x%llx\n",
-			      regs.orig_rax, regs.rax, regs.rip);
+		//	PRINT("regs rax 0x%llx, 0x%llx, ip 0x%llx\n",
+		//	      regs.orig_rax, regs.rax, regs.rip);
 			//PRINT("0x%lx 0x%lx 0x%lx");
 			break;
 		}
