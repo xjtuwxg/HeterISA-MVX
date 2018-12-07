@@ -127,6 +127,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 /**
  * Inline funtion to handle SYS_read on master node.
  *    ssize_t read(int fd, void *buf, size_t count)
+ *    "retval" is actually the length of the string write to buffer.
  * */
 static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		      long long retval)
@@ -141,24 +142,33 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
-	if (child_fd == 5) {
+	if (child_fd == 0) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s. cnt %lld. child_cnt %lu\n", __func__, retval, child_cnt);
-
+#if 0
+		msg.syscall = 0;
+		msg.len = retval;
+		memcpy(msg.buf, monitor_buf, retval);
+		ret = write(fd, (void*)&msg, retval+16);
+#endif
+#if 1
+		msg.syscall = 0;	// SYS_read x86
 		if (retval > 0) {
-			msg.syscall = 0;	// SYS_read x86
 			msg.len = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval+16);
-			fsync(fd);
+			//fsync(fd);
+			PRINT("write ret: %d. retval: %lld. errno %d\n",
+				ret, retval, errno);
 		} else {
 			sprintf(buf, "%llx", retval);
-			msg.len = strlen(buf);
-			memcpy(msg.buf, buf, msg.len);
+			msg.len = -1*strlen(buf);
+			memcpy(msg.buf, buf, strlen(buf));
+			ret = write(fd, (void*)&msg, 16 + strlen(buf));
+			PRINT("write ret: %d. retval: %lld. msg len %lu\n",
+				ret, retval, strlen(buf));
 		}
-		ret = write(fd, monitor_buf, retval);
-		PRINT("write ret: %d. retval: %lld. errno %d\n",
-		      ret, retval, errno);
+#endif
 	}
 	free(monitor_buf);
 }
