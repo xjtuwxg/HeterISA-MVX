@@ -65,15 +65,10 @@ int main(int argc, char **argv)
 		//	FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
 		int status = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
-			FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
-		PRINT("ptrace status %x. %d, %d, %d, %d\n", status,
-		      WIFEXITED(status), WIFSIGNALED(status),
-		      WIFSTOPPED(status), WSTOPSIG(status));
-		if (WSTOPSIG(status) != 5) {
-			PRINT("Not a sigtrap (%d). See \"man 7 signal\"\n",
-			      WSTOPSIG(status));
-			break;
-		}
+			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
+		//PRINT("ptrace status %x. %d, %d, %d, %d\n", status,
+		//      WIFEXITED(status), WIFSIGNALED(status),
+		//      WIFSTOPPED(status), WSTOPSIG(status));
 
 		/* Get system call arguments */
 		struct user_regs_struct regs;
@@ -82,15 +77,18 @@ int main(int argc, char **argv)
 		long long syscall_retval;
 
 		syscall_num = get_regs_args(pid, &regs, args);
-		//PRINT("[before syscall], ip: 0x%llx\n", regs.rip);
-		if (syscall_num == -1) {
-			PRINT("syscall #%ld, terminate\n",
-			      syscall_num);
-		//	PRINT("regs rax 0x%llx, 0x%llx, ip 0x%llx\n",
-		//	      regs.orig_rax, regs.rax, regs.rip);
-			//PRINT("0x%lx 0x%lx 0x%lx");
+		if (WSTOPSIG(status) != 5) {
+#ifdef __x86_64__
+			PRINT("Not a sigtrap (%d). See \"man 7 signal\". IP: 0x%llx\n",
+			      WSTOPSIG(status), regs.rip);
+#endif
 			break;
 		}
+		//if (syscall_num == -1) {
+		//	PRINT("syscall #%ld, terminate\n",
+		//	      syscall_num);
+		//	break;
+		//}
 
 		pre_syscall(syscall_num, args);
 
@@ -100,7 +98,7 @@ int main(int argc, char **argv)
 #endif
 		/* Run system call and stop on exit */
 		if (ptrace_syscall(pid) < 0)
-			FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
+			FATAL("PTRACE_SYSCALL error 2: %s.", strerror(errno));
 
 		/* Get system call result, and print it */
 		syscall_retval = get_retval(pid, &regs, &terminate);

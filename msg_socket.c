@@ -36,7 +36,7 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 	rb->size++;
 
 	/* WARN: This operation increase the global semaphore. To work
-	 * correctly, call sem_wait first before calling ringbuf_del() */
+	 * correctly, call sem_wait first before calling ringbuf_pop() */
 	sem_post(&rb->sem);
 
 	return 0;
@@ -45,7 +45,7 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 /**
  * Del msg from the ringbuf rb.
  * */
-int ringbuf_del(ringbuf_t rb, msg_t *msg)
+int ringbuf_pop(ringbuf_t rb, msg_t *msg)
 {
 	msg_t *del_msg;
 
@@ -183,14 +183,15 @@ void process_data(int fd)
 {
 	ssize_t cnt;
 	char buf[512];
-	msg_t *new_msg = malloc(sizeof(msg_t));
+	msg_t *new_msg = malloc(sizeof(msg_t));	// not free in this func
 
-	/* Read the msg_t from socket fd: first read syscall & len, then read
-	 * the message buffer */
+	/* Read the msg_t from socket fd: first read 16 bytes header, then
+	 * read the message buffer */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	//MSG_PRINT("%s:%s:  syscall %ld, len %ld\n", __FILE__, __func__,
-	//	  new_msg->syscall, new_msg->len);
+	MSG_PRINT("%s: syscall %d, len %u, flag %d, ret 0x%lx\n", __FILE__,
+		new_msg->syscall, new_msg->len, new_msg->flag, new_msg->retval);
+
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);
 		memcpy(new_msg->buf, buf, new_msg->len);
@@ -202,7 +203,7 @@ void process_data(int fd)
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ringbuf_add(ringbuf, new_msg);
-	MSG_PRINT("%s: syscall %lu (len %lu), rb head %lu, rb tail %lu. size %lu\n",
+	MSG_PRINT("%s: syscall %d (len %u), rb head %lu, rb tail %lu. size %lu\n",
 		  __func__, new_msg->syscall, new_msg->len,
 		  ringbuf->head, ringbuf->tail, ringbuf->size);
 }

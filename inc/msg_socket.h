@@ -35,11 +35,14 @@
 typedef struct sockaddr SA;
 
 /**
- * The message data structure, also the entry of ringbuf_t
+ * The message data structure, also the entry of ringbuf_t.
+ * The msg_t header has 16 bytes, then follows the variant length buf.
  * */
 typedef struct _message_t {
-	long syscall;	// 8 bytes
-	long len;	// 8 bytes
+	short syscall;		// 2 bytes
+	short flag;		// 2 bytes
+	unsigned int len;	// 4 bytes
+	long retval;		// 8 bytes
 	char buf[MSG_SIZE];
 } msg_t;
 
@@ -81,7 +84,7 @@ void msg_thread_init(void);
 /* Ring buffer related interfaces */
 ringbuf_t ringbuf_new(void);
 int ringbuf_add(ringbuf_t rb, msg_t *msg);
-int ringbuf_del(ringbuf_t rb, msg_t *msg);
+int ringbuf_pop(ringbuf_t rb, msg_t *msg);
 
 static inline size_t ringbuf_size(ringbuf_t rb)
 {

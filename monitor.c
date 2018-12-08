@@ -53,17 +53,33 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			sem_wait(&ringbuf->sem);
 			msg_t *tmsg = ringbuf_gettop(ringbuf);
 			if (tmsg) {
-				PRINT("syscall %ld, len %ld\n", tmsg->syscall, tmsg->len);
+				PRINT("syscall %d, len %u\n", tmsg->syscall, tmsg->len);
 			}
 			else {
 				PRINT("top empty\n");
+				break;
 			}
-			if (tmsg->len < 0) break;
 
-			ringbuf_del(ringbuf, &rmsg);
-			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
+			// If it's a normal read syscall, use the top msg_t and
+			// delete it in post syscall handler.
+			if (tmsg->retval >= 0) {
+				update_child_data(pid, args[1], tmsg->buf,
+						  tmsg->len);
+			}
+
+			// If read returns negative number, nothing to handle
+			// here, just jmp to the post syscall handler.
+			//if (tmsg->retval < 0) {
+			//	syscall_getpid(pid);
+			//	break;
+			//}
+#if 0
+			if (tmsg->len == 0) break;
+			ringbuf_pop(ringbuf, &rmsg);
+			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			update_child_data(pid, args[1], rmsg.buf, rmsg.len);
+#endif
 			syscall_getpid(pid);
 		}
 		break;
@@ -78,8 +94,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			sem_getvalue(&ringbuf->sem, &val);
 			PRINT("after sem_wait. %d\n", val);
 
-			ringbuf_del(ringbuf, &rmsg);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu, syscall %lu\n",
+			ringbuf_pop(ringbuf, &rmsg);
+			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg.buf, rmsg.len);
 			update_child_data(pid, args[1], (char*)events,
@@ -109,9 +125,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		sem_getvalue(&ringbuf->sem, &val);
 		PRINT("after sem_wait. %d\n", val);
 
-		ringbuf_del(ringbuf, &rmsg);
+		ringbuf_pop(ringbuf, &rmsg);
 		sscanf(rmsg.buf, "%llx", &master_retval);
-		PRINT("%s: msg.buf: 0x%s, msg.len: %lu. master_retval %lld\n",
+		PRINT("%s: msg.buf: 0x%s, msg.len: %u. master_retval %lld\n",
 		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
@@ -144,29 +160,24 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	monitor_buf = malloc(child_cnt+8);
 	if (child_fd == 0) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s. cnt %lld. child_cnt %lu\n", __func__, retval, child_cnt);
-#if 0
-		msg.syscall = 0;
-		msg.len = retval;
-		memcpy(msg.buf, monitor_buf, retval);
-		ret = write(fd, (void*)&msg, retval+16);
-#endif
+		PRINT("%s. cnt %lld. child_cnt %lu\n",
+		      __func__, retval, child_cnt);
 #if 1
 		msg.syscall = 0;	// SYS_read x86
 		if (retval > 0) {
 			msg.len = retval;
+			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval+16);
 			//fsync(fd);
 			PRINT("write ret: %d. retval: %lld. errno %d\n",
 				ret, retval, errno);
 		} else {
-			sprintf(buf, "%llx", retval);
-			msg.len = -1*strlen(buf);
-			memcpy(msg.buf, buf, strlen(buf));
-			ret = write(fd, (void*)&msg, 16 + strlen(buf));
-			PRINT("write ret: %d. retval: %lld. msg len %lu\n",
-				ret, retval, strlen(buf));
+			msg.len = 0;
+			msg.retval = retval;
+			ret = write(fd, (void*)&msg, 16);
+			PRINT("write ret: %d. retval: %lld. msg len 16\n",
+				ret, retval);
 		}
 #endif
 	}
