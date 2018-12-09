@@ -45,15 +45,16 @@ void post_syscall(long syscall, long result)
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 {
 	int val;
-	msg_t rmsg;
+	msg_t *rmsg = NULL;
+	//msg_t *tmsg = NULL;
 	switch (syscall_num) {
 	case SYS_read:	// Wait read buffer sent from master variant.
 		//if (args[0] == 0) {
 		{
 			// Wait for the non-empty ringbuf.
-			msg_t *tmsg = NULL;
 			sem_wait(&ringbuf->sem);
-			tmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_gettop(ringbuf);
+#if 0
 			if (tmsg) {
 				PRINT("syscall %d, len %u\n", tmsg->syscall, tmsg->len);
 			}
@@ -61,12 +62,12 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 				PRINT("top empty, should not be here.\n");
 				break;
 			}
-
-			// If it's a normal read syscall, use the top msg_t and
-			// delete it in post syscall handler.
-			if (tmsg->retval >= 0) {
-				update_child_data(pid, args[1], tmsg->buf,
-						  tmsg->len);
+#endif
+			// If it's a normal read syscall, use the top msg_t to
+			// update the param, and delete it in post syscall handler.
+			if (rmsg->retval >= 0) {
+				update_child_data(pid, args[1], rmsg->buf,
+						  rmsg->len);
 			}
 
 			// If read returns negative number, nothing to handle
@@ -78,19 +79,16 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 #if __x86_64__
 		{
 			struct epoll_event events[16];
-
-			sem_getvalue(&ringbuf->sem, &val);
-			PRINT(">>>>> sys_epoll_wait before sem_wait. %d\n", val);
 			sem_wait(&ringbuf->sem);
-			sem_getvalue(&ringbuf->sem, &val);
-			PRINT("after sem_wait. %d\n", val);
+			rmsg = ringbuf_gettop(ringbuf);
 
-			ringbuf_pop(ringbuf, &rmsg);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
-			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
-			memcpy(events, rmsg.buf, rmsg.len);
+			//ringbuf_pop(ringbuf, &rmsg);
+			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
+			memcpy(events, rmsg->buf, rmsg->len);
 			update_child_data(pid, args[1], (char*)events,
-				rmsg.len);
+				rmsg->len);
+
 			syscall_getpid(pid);
 		}
 #endif
@@ -126,6 +124,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	/* The following syscalls were handled before for the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
+	case SYS_epoll_pwait:
 		PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
