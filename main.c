@@ -60,46 +60,37 @@ int main(int argc, char **argv)
 
 	int terminate = 0;
 	while (!terminate) {
-		/* Enter next system call */
-		//if (ptrace_syscall(pid) < 0)
-		//	FATAL("PTRACE_SYSCALL error: %s,", strerror(errno));
+		/* Enter next system call (before entering) */
 		int status = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
-		//PRINT("ptrace status %x. %d, %d, %d, %d\n", status,
-		//      WIFEXITED(status), WIFSIGNALED(status),
-		//      WIFSTOPPED(status), WSTOPSIG(status));
+		if (WSTOPSIG(status) != 5) {
+			PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
+			      WSTOPSIG(status));
+			break;
+		}
 
-		/* Get system call arguments */
+		/* (1) The following code handles syscall params, before tracee
+		 *     entering the kernel. */
 		struct user_regs_struct regs;
 		long long args[6];
 		long syscall_num;
 		long long syscall_retval;
 
+		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
-		if (WSTOPSIG(status) != 5) {
-#ifdef __x86_64__
-			PRINT("Not a sigtrap (%d). See \"man 7 signal\". IP: 0x%llx\n",
-			      WSTOPSIG(status), regs.rip);
-#endif
-			break;
-		}
-		//if (syscall_num == -1) {
-		//	PRINT("syscall #%ld, terminate\n",
-		//	      syscall_num);
-		//	break;
-		//}
-
 		pre_syscall(syscall_num, args);
-
 #ifdef __x86_64__
 		/* Follower variant has to wait the master variant' input */
 		follower_wait_pre_syscall(pid, syscall_num, args);
 #endif
-		/* Run system call and stop on exit */
+
+		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
 			FATAL("PTRACE_SYSCALL error 2: %s.", strerror(errno));
 
+		/* (2) The following code handles syscall retval, after tracee
+		 *     leaving the kernel. */
 		/* Get system call result, and print it */
 		syscall_retval = get_retval(pid, &regs, &terminate);
 		if (terminate) {

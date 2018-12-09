@@ -40,7 +40,7 @@ typedef struct sockaddr SA;
  * */
 typedef struct _message_t {
 	short syscall;		// 2 bytes
-	short flag;		// 2 bytes
+	short flag;		// 2 bytes, not used so far
 	unsigned int len;	// 4 bytes
 	long retval;		// 8 bytes
 	char buf[MSG_SIZE];

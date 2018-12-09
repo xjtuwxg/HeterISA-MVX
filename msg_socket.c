@@ -43,7 +43,7 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 }
 
 /**
- * Del msg from the ringbuf rb.
+ * Pop (delete) msg from the ringbuf rb.
  * */
 int ringbuf_pop(ringbuf_t rb, msg_t *msg)
 {

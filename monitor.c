@@ -50,13 +50,15 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 	case SYS_read:	// Wait read buffer sent from master variant.
 		//if (args[0] == 0) {
 		{
+			// Wait for the non-empty ringbuf.
+			msg_t *tmsg = NULL;
 			sem_wait(&ringbuf->sem);
-			msg_t *tmsg = ringbuf_gettop(ringbuf);
+			tmsg = ringbuf_gettop(ringbuf);
 			if (tmsg) {
 				PRINT("syscall %d, len %u\n", tmsg->syscall, tmsg->len);
 			}
 			else {
-				PRINT("top empty\n");
+				PRINT("top empty, should not be here.\n");
 				break;
 			}
 
@@ -69,17 +71,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 
 			// If read returns negative number, nothing to handle
 			// here, just jmp to the post syscall handler.
-			//if (tmsg->retval < 0) {
-			//	syscall_getpid(pid);
-			//	break;
-			//}
-#if 0
-			if (tmsg->len == 0) break;
-			ringbuf_pop(ringbuf, &rmsg);
-			PRINT(">>>>> pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
-			      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
-			update_child_data(pid, args[1], rmsg.buf, rmsg.len);
-#endif
 			syscall_getpid(pid);
 		}
 		break;
@@ -114,6 +105,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	msg_t rmsg;
 
 	switch (syscall_num) {
+	/* The following syscalls are only handled here for the retval. */
 	case SYS_accept:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
@@ -132,8 +124,13 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 #endif
 		break;
+	/* The following syscalls were handled before for the params, and they
+	 * are handled again here for the retval. */
 	case SYS_read:
-		PRINT("TODO: should be a negative value\n");
+		PRINT("Update retval of syscall %d\n", syscall_num);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		break;
 	}
 }
@@ -160,26 +157,24 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	monitor_buf = malloc(child_cnt+8);
 	if (child_fd == 0) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s. cnt %lld. child_cnt %lu\n",
+		PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
 		      __func__, retval, child_cnt);
-#if 1
+
 		msg.syscall = 0;	// SYS_read x86
-		if (retval > 0) {
+		if (retval > 0) {	// read something correct
 			msg.len = retval;
 			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval+16);
-			//fsync(fd);
 			PRINT("write ret: %d. retval: %lld. errno %d\n",
 				ret, retval, errno);
-		} else {
+		} else {		// read unsuccessful, ret negative
 			msg.len = 0;
 			msg.retval = retval;
 			ret = write(fd, (void*)&msg, 16);
 			PRINT("write ret: %d. retval: %lld. msg len 16\n",
 				ret, retval);
 		}
-#endif
 	}
 	free(monitor_buf);
 }
@@ -210,6 +205,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 
 	// Get the child epoll_event data on arm.
 	get_child_data(pid, (char*)events, args[1], events_len);
+	// Convert epoll events to x86 data format.
 	for (i = 0; i < retval; i++) {
 		x86_events[i].events = events[i].events;
 		x86_events[i].data = events[i].data;
@@ -218,10 +214,10 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	// Send epoll_event through msg_t variable
 	msg.syscall = 281;	// SYS_epoll_pwait x86
 	msg.len = x86_epoll_len;
+	msg.retval = retval;
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
-	fsync(fd);
-	//ret = write(fd, (void*)x86_events, x86_epoll_len);
+	//fsync(fd);
 	PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
 	      ret, errno, x86_epoll_len, events_len);
 	free(events);
