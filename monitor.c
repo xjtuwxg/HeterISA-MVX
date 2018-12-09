@@ -104,12 +104,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	long long master_retval;
 	msg_t rmsg;
 
+#if __x86_64__
 	switch (syscall_num) {
 	/* The following syscalls are only handled here for the retval. */
 	case SYS_accept:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
-#if __x86_64__
 		sem_getvalue(&ringbuf->sem, &val);
 		PRINT(">>>>> follower is handling [%3ld] before sem_wait. %d\n",
 		      syscall_num, val);
@@ -122,17 +122,17 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		PRINT("%s: msg.buf: 0x%s, msg.len: %u. master_retval %lld\n",
 		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-#endif
 		break;
 	/* The following syscalls were handled before for the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
-		PRINT("Update retval of syscall %d\n", syscall_num);
+		PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		break;
 	}
+#endif
 }
 
 
