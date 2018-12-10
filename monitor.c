@@ -3,13 +3,14 @@
 #include "msg_socket.h"
 #include "ptrace.h"
 
+static int count = 0;
 /* @param: syscall num & arguments */
 void pre_syscall(long syscall, long long args[])
 {
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
-    fprintf(stderr, "[%3ld] %s\n", syscall, syscall_name[syscall]);
+    fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
 #if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
@@ -113,11 +114,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		      syscall_num, val);
 		sem_wait(&ringbuf->sem);
 		sem_getvalue(&ringbuf->sem, &val);
-		PRINT("after sem_wait. %d\n", val);
+		//PRINT("after sem_wait. %d\n", val);
 
 		ringbuf_pop(ringbuf, &rmsg);
-		sscanf(rmsg.buf, "%llx", &master_retval);
-		PRINT("%s: msg.buf: 0x%s, msg.len: %u. master_retval %lld\n",
+		//sscanf(rmsg.buf, "%llx", &master_retval);
+		master_retval = rmsg.retval;
+		PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
 		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		break;
