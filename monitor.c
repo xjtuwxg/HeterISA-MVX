@@ -55,15 +55,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			// Wait for the non-empty ringbuf.
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-#if 0
-			if (tmsg) {
-				PRINT("syscall %d, len %u\n", tmsg->syscall, tmsg->len);
-			}
-			else {
-				PRINT("top empty, should not be here.\n");
-				break;
-			}
-#endif
+
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param, and delete it in post syscall handler.
 			if (rmsg->retval >= 0) {
@@ -80,10 +72,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 #if __x86_64__
 		{
 			struct epoll_event events[16];
+
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
 
-			//ringbuf_pop(ringbuf, &rmsg);
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg->buf, rmsg->len);
@@ -232,20 +224,20 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
-	char buf[20];
+	//char buf[20];
 	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
 
 	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
 	 * send it */
-	sprintf(buf, "%llx", retval);
+	//sprintf(buf, "%llx", retval);
 	msg.syscall = syscall;	// syscall number on x86 platform
-	msg.len = strlen(buf);
-	memcpy(msg.buf, buf, msg.len);
-	ret = write(fd, &msg, msg.len+16);
-	fsync(fd);
+	msg.len = 0;
+	msg.retval = retval;
+	//memcpy(msg.buf, buf, msg.len);
+	ret = write(fd, &msg, 16);
+	//fsync(fd);
 
-	PRINT("** %s: buf %s, write %d bytes. len %lu.\n",
-	      __func__, buf, ret, strlen(buf));
+	PRINT("** %s: write %d bytes.\n", __func__, ret);
 }
 
 /**
