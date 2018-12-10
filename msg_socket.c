@@ -165,7 +165,8 @@ static int accept_connection(int listenfd, int epollfd)
 		}
 		/* add the conn socket to epoll monitor */
 		event.data.fd = connfd;
-		event.events = EPOLLIN | EPOLLET;
+		//event.events = EPOLLIN | EPOLLET;
+		event.events = EPOLLIN;
 		if (epoll_ctl(epollfd, EPOLL_CTL_ADD, connfd, &event) == -1) {
 			fprintf(stderr, "epoll ctl error\n");
 			return -1;
@@ -224,7 +225,8 @@ void * msg_thread_main(void *args)
 		FATAL("epoll create error");
 	}
 	event.data.fd = listenfd;
-	event.events = EPOLLIN | EPOLLET;
+	//event.events = EPOLLIN | EPOLLET;
+	event.events = EPOLLIN;
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
 

@@ -123,6 +123,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
 		break;
 	}
 #endif
@@ -148,7 +149,8 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
-	if (child_fd == 0) {
+	//if (child_fd == 0) {
+	{
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
 		      __func__, retval, child_cnt);
@@ -258,6 +260,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		master_sys_epoll_pwait(pid, fd, args, retval);
 		PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
+
 	/* The following syscalls only have to send the retval. */
 	case SYS_accept:
 	case SYS_fcntl:
