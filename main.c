@@ -59,9 +59,12 @@ int main(int argc, char **argv)
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
 	int terminate = 0;
+	int skip_post_handling = 0;
+	int status = 0;
 	while (!terminate) {
 		/* Enter next system call (before entering) */
-		int status = 0;
+		status = 0;
+		skip_post_handling = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
 		if (WSTOPSIG(status) != 5) {
@@ -82,7 +85,8 @@ int main(int argc, char **argv)
 		pre_syscall(syscall_num, args);
 #ifdef __x86_64__
 		/* Follower variant has to wait the master variant' input */
-		follower_wait_pre_syscall(pid, syscall_num, args);
+		follower_wait_pre_syscall(pid, syscall_num, args,
+					  &skip_post_handling);
 #endif
 
 		/* Run system call and stop on exit (after syscall return) */
@@ -108,7 +112,8 @@ int main(int argc, char **argv)
 #endif
 #ifdef __x86_64__
 		/* Follower wants to wait leader's syscall retval */
-		follower_wait_post_syscall(pid, syscall_num);
+		if (!skip_post_handling)
+			follower_wait_post_syscall(pid, syscall_num);
 		RAW_PRINT("\n");
 #endif
 	}

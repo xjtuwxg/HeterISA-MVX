@@ -56,9 +56,12 @@ static const char* syscall_name[] = {
 void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);
 
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[]);
+/* Follower syscall handling code. */
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+			       int *skip_post_handling);
 void follower_wait_post_syscall(pid_t pid, long syscall_num);
 
+/* Master sync code. */
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval);
 

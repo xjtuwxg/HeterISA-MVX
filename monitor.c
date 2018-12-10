@@ -43,15 +43,15 @@ void post_syscall(long syscall, long result)
 
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
  * MVX slave node */
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+			       int *skip_post_handling)
 {
 	int val;
 	msg_t *rmsg = NULL;
 	//msg_t *tmsg = NULL;
 	switch (syscall_num) {
 	case SYS_read:	// Wait read buffer sent from master variant.
-		//if (args[0] == 0) {
-		{
+		if (args[0] != 3) {
 			// Wait for the non-empty ringbuf.
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
@@ -66,6 +66,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
 			// If read returns negative number, nothing to handle
 			// here, just jmp to the post syscall handler.
 			syscall_getpid(pid);
+		} else {
+			*skip_post_handling = 1;
 		}
 		break;
 	case SYS_epoll_pwait:
@@ -149,8 +151,7 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 
 	assert(child_cnt > 0);
 	monitor_buf = malloc(child_cnt+8);
-	//if (child_fd == 0) {
-	{
+	if (child_fd != 3) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
 		      __func__, retval, child_cnt);
