@@ -1,0 +1,223 @@
+execve("/opt/lighttpd/sbin/lighttpd", ["/opt/lighttpd/sbin/lighttpd", "-f", "test/lighttpd.conf", "-D"], [/* 21 vars */]) = 0
+arch_prctl(ARCH_SET_FS, 0x7f17a93fcd48) = 0
+set_tid_address(0x7f17a93fcd88)         = 1251
+getuid()                                = 1006
+brk(0)                                  = 0x1f9b000
+brk(0x1f9c000)                          = 0x1f9c000
+getuid()                                = 1006
+getpid()                                = 1251
+getcwd("/home/xiaoguang/works/mvx/popcorn-mvx", 1087) = 38
+open("test/lighttpd.conf", O_RDONLY|O_NONBLOCK) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=425, ...}) = 0
+mmap(NULL, 425, PROT_READ, MAP_SHARED, 3, 0) = 0x7f17a93f9000
+close(3)                                = 0
+brk(0x1f9d000)                          = 0x1f9d000
+brk(0x1f9e000)                          = 0x1f9e000
+munmap(0x7f17a93f9000, 425)             = 0
+open("/dev/null", O_RDWR|O_NOCTTY|O_CLOEXEC) = 3
+fcntl(3, F_SETFD, FD_CLOEXEC)           = 0
+fstat(2, {st_mode=S_IFREG|0644, st_size=984, ...}) = 0
+dup2(3, 0)                              = 0
+dup2(3, 1)                              = 1
+close(3)                                = 0
+brk(0x1f9f000)                          = 0x1f9f000
+stat("/var/tmp", {st_mode=S_IFDIR|S_ISVTX|0777, st_size=4096, ...}) = 0
+stat("/var/www/html", {st_mode=S_IFDIR|0755, st_size=4096, ...}) = 0
+stat("/VAR/WWW/HTML", 0x7ffe6fb1d3e0)   = -1 ENOENT (No such file or directory)
+open("/opt/lighttpd/lib/mod_indexfile.so", O_RDONLY|O_CLOEXEC) = 3
+fcntl(3, F_SETFD, FD_CLOEXEC)           = 0
+fstat(3, {st_mode=S_IFREG|0755, st_size=31664, ...}) = 0
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\240\v\0\0\0\0\0\0"..., 960) = 960
+mmap(NULL, 2105344, PROT_READ|PROT_EXEC, MAP_PRIVATE, 3, 0) = 0x7f17a8f67000
+mmap(0x7f17a9168000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED, 3, 0x1000) = 0x7f17a9168000
+close(3)                                = 0
+open("/opt/lighttpd/lib/mod_dirlisting.so", O_RDONLY|O_CLOEXEC) = 3
+fcntl(3, F_SETFD, FD_CLOEXEC)           = 0
+fstat(3, {st_mode=S_IFREG|0755, st_size=56176, ...}) = 0
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\360\23\0\0\0\0\0\0"..., 960) = 960
+mmap(NULL, 2121728, PROT_READ|PROT_EXEC, MAP_PRIVATE, 3, 0) = 0x7f17a8d61000
+mmap(0x7f17a8f66000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED, 3, 0x5000) = 0x7f17a8f66000
+close(3)                                = 0
+open("/opt/lighttpd/lib/mod_staticfile.so", O_RDONLY|O_CLOEXEC) = 3
+fcntl(3, F_SETFD, FD_CLOEXEC)           = 0
+fstat(3, {st_mode=S_IFREG|0755, st_size=29312, ...}) = 0
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0P\10\0\0\0\0\0\0"..., 960) = 960
+mmap(NULL, 2105344, PROT_READ|PROT_EXEC, MAP_PRIVATE, 3, 0) = 0x7f17a8b5f000
+mmap(0x7f17a8d60000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED, 3, 0x1000) = 0x7f17a8d60000
+close(3)                                = 0
+prlimit64(0, RLIMIT_NOFILE, NULL, {rlim_cur=64*1024, rlim_max=64*1024}) = 0
+brk(0x1fa0000)                          = 0x1fa0000
+socket(PF_INET, SOCK_STREAM, IPPROTO_TCP) = 3
+fcntl(3, F_SETFD, FD_CLOEXEC)           = 0
+fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK)    = 0
+setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+setsockopt(3, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+bind(3, {sa_family=AF_INET, sin_port=htons(8889), sin_addr=inet_addr("0.0.0.0")}, 16) = 0
+listen(3, 1024)                         = 0
+rt_sigaction(SIGPIPE, {SIG_IGN, [], SA_RESTORER, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigprocmask(SIG_UNBLOCK, [RT_1 RT_2], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x407ed0, [], SA_RESTORER|SA_SIGINFO, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigaction(SIGTERM, {0x407ed0, [], SA_RESTORER|SA_SIGINFO, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigaction(SIGHUP, {0x407ed0, [], SA_RESTORER|SA_SIGINFO, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigaction(SIGALRM, {0x407ed0, [], SA_RESTORER|SA_SIGINFO, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigaction(SIGUSR1, {0x407ed0, [], SA_RESTORER|SA_SIGINFO, 0x7f17a91b4d22}, NULL, 8) = 0
+rt_sigaction(SIGCHLD, {0x407ed0, [], SA_RESTORER|SA_RESTART|SA_SIGINFO|SA_NOCLDSTOP, 0x7f17a91b4d22}, NULL, 8) = 0
+getgid()                                = 1006
+getuid()                                = 1006
+getpid()                                = 1251
+open("/etc/localtime", O_RDONLY|O_NONBLOCK|O_CLOEXEC) = 4
+fstat(4, {st_mode=S_IFREG|0644, st_size=3519, ...}) = 0
+mmap(NULL, 3519, PROT_READ, MAP_SHARED, 4, 0) = 0x7f17a93f9000
+close(4)                                = 0
+write(2, "2018-12-10 22:56:17: (server.c.1"..., 712018-12-10 22:56:17: (server.c.1430) server started (lighttpd/1.4.50) 
+) = 71
+socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, IPPROTO_IP) = 4
+fcntl(4, F_GETFL)                       = 0x802 (flags O_RDWR|O_NONBLOCK)
+close(4)                                = 0
+brk(0x1fa1000)                          = 0x1fa1000
+mmap(NULL, 528384, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f17a9378000
+epoll_create1(0)                        = 4
+fcntl(4, F_SETFD, FD_CLOEXEC)           = 0
+mmap(NULL, 790528, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f17a92b7000
+rt_sigaction(SIGCHLD, {0x407ed0, [], SA_RESTORER|SA_RESTART|SA_SIGINFO|SA_NOCLDSTOP, 0x7f17a91b4d22}, NULL, 8) = 0
+epoll_ctl(4, EPOLL_CTL_ADD, 3, {EPOLLIN|EPOLLERR|EPOLLHUP, {u32=3, u64=3}}) = 0
+open("/dev/null", O_RDWR|O_NOCTTY|O_CLOEXEC) = 5
+fcntl(5, F_SETFD, FD_CLOEXEC)           = 0
+close(5)                                = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+sysinfo({uptime=2104789, loads=[352, 1792, 0] totalram=33626701824, freeram=20596887552, sharedram=9519104, bufferram=476721152} totalswap=30102515712, freeswap=30102515712, procs=280}) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {{EPOLLIN, {u32=3, u64=3}}}, 65537, 1000, NULL, 8) = 1
+accept4(3, {sa_family=AF_INET, sin_port=htons(50294), sin_addr=inet_addr("10.4.4.36")}, [16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 5
+getsockopt(5, SOL_TCP, TCP_NODELAY, [1], [4]) = 0
+brk(0x1fa2000)                          = 0x1fa2000
+brk(0x1fa3000)                          = 0x1fa3000
+brk(0x1fa4000)                          = 0x1fa4000
+brk(0x1fa5000)                          = 0x1fa5000
+brk(0x1fa6000)                          = 0x1fa6000
+brk(0x1fa7000)                          = 0x1fa7000
+brk(0x1fa8000)                          = 0x1fa8000
+brk(0x1fa9000)                          = 0x1fa9000
+brk(0x1faa000)                          = 0x1faa000
+brk(0x1fab000)                          = 0x1fab000
+brk(0x1fac000)                          = 0x1fac000
+brk(0x1fad000)                          = 0x1fad000
+brk(0x1fae000)                          = 0x1fae000
+brk(0x1faf000)                          = 0x1faf000
+brk(0x1fb0000)                          = 0x1fb0000
+brk(0x1fb1000)                          = 0x1fb1000
+brk(0x1fb2000)                          = 0x1fb2000
+brk(0x1fb3000)                          = 0x1fb3000
+brk(0x1fb4000)                          = 0x1fb4000
+brk(0x1fb5000)                          = 0x1fb5000
+brk(0x1fb6000)                          = 0x1fb6000
+brk(0x1fb7000)                          = 0x1fb7000
+brk(0x1fb8000)                          = 0x1fb8000
+brk(0x1fb9000)                          = 0x1fb9000
+brk(0x1fba000)                          = 0x1fba000
+brk(0x1fbb000)                          = 0x1fbb000
+brk(0x1fbc000)                          = 0x1fbc000
+brk(0x1fbd000)                          = 0x1fbd000
+brk(0x1fbe000)                          = 0x1fbe000
+brk(0x1fbf000)                          = 0x1fbf000
+brk(0x1fc0000)                          = 0x1fc0000
+brk(0x1fc1000)                          = 0x1fc1000
+brk(0x1fc2000)                          = 0x1fc2000
+brk(0x1fc3000)                          = 0x1fc3000
+brk(0x1fc4000)                          = 0x1fc4000
+brk(0x1fc5000)                          = 0x1fc5000
+brk(0x1fc6000)                          = 0x1fc6000
+brk(0x1fc7000)                          = 0x1fc7000
+brk(0x1fc8000)                          = 0x1fc8000
+brk(0x1fc9000)                          = 0x1fc9000
+brk(0x1fca000)                          = 0x1fca000
+brk(0x1fcb000)                          = 0x1fcb000
+brk(0x1fcc000)                          = 0x1fcc000
+brk(0x1fcd000)                          = 0x1fcd000
+brk(0x1fce000)                          = 0x1fce000
+brk(0x1fcf000)                          = 0x1fcf000
+brk(0x1fd0000)                          = 0x1fd0000
+brk(0x1fd1000)                          = 0x1fd1000
+brk(0x1fd2000)                          = 0x1fd2000
+brk(0x1fd3000)                          = 0x1fd3000
+brk(0x1fd4000)                          = 0x1fd4000
+brk(0x1fd5000)                          = 0x1fd5000
+brk(0x1fd6000)                          = 0x1fd6000
+brk(0x1fd7000)                          = 0x1fd7000
+brk(0x1fd8000)                          = 0x1fd8000
+brk(0x1fd9000)                          = 0x1fd9000
+brk(0x1fda000)                          = 0x1fda000
+brk(0x1fdb000)                          = 0x1fdb000
+brk(0x1fdc000)                          = 0x1fdc000
+brk(0x1fdd000)                          = 0x1fdd000
+brk(0x1fde000)                          = 0x1fde000
+brk(0x1fdf000)                          = 0x1fdf000
+brk(0x1fe0000)                          = 0x1fe0000
+brk(0x1fe1000)                          = 0x1fe1000
+brk(0x1fe2000)                          = 0x1fe2000
+brk(0x1fe3000)                          = 0x1fe3000
+brk(0x1fe4000)                          = 0x1fe4000
+brk(0x1fe5000)                          = 0x1fe5000
+brk(0x1fe6000)                          = 0x1fe6000
+brk(0x1fe7000)                          = 0x1fe7000
+brk(0x1fe8000)                          = 0x1fe8000
+brk(0x1fe9000)                          = 0x1fe9000
+brk(0x1fea000)                          = 0x1fea000
+brk(0x1feb000)                          = 0x1feb000
+brk(0x1fec000)                          = 0x1fec000
+brk(0x1fed000)                          = 0x1fed000
+brk(0x1fee000)                          = 0x1fee000
+brk(0x1fef000)                          = 0x1fef000
+brk(0x1ff0000)                          = 0x1ff0000
+brk(0x1ff1000)                          = 0x1ff1000
+brk(0x1ff2000)                          = 0x1ff2000
+brk(0x1ff3000)                          = 0x1ff3000
+brk(0x1ff4000)                          = 0x1ff4000
+brk(0x1ff5000)                          = 0x1ff5000
+brk(0x1ff6000)                          = 0x1ff6000
+brk(0x1ff7000)                          = 0x1ff7000
+brk(0x1ff8000)                          = 0x1ff8000
+brk(0x1ff9000)                          = 0x1ff9000
+brk(0x1ffa000)                          = 0x1ffa000
+ioctl(5, FIONREAD, [88])                = 0
+brk(0x1ffc000)                          = 0x1ffc000
+read(5, "GET /index.html HTTP/1.1\r\nHost: "..., 4159) = 88
+stat("/var/www/html/index.html", {st_mode=S_IFREG|0644, st_size=285, ...}) = 0
+open("/var/www/html/index.html", O_RDONLY) = 6
+close(6)                                = 0
+open("/var/www/html/index.html", O_RDONLY|O_NOCTTY|O_NONBLOCK|O_CLOEXEC) = 6
+fcntl(6, F_SETFD, FD_CLOEXEC)           = 0
+fstat(6, {st_mode=S_IFREG|0644, st_size=285, ...}) = 0
+setsockopt(5, SOL_TCP, TCP_CORK, [1], 4) = 0
+writev(5, [{"HTTP/1.1 200 OK\r\nContent-Type: a"..., 164}], 1) = 164
+fstat(6, {st_mode=S_IFREG|0644, st_size=285, ...}) = 0
+sendfile(5, 6, [0], 285)                = 285
+close(6)                                = 0
+setsockopt(5, SOL_TCP, TCP_CORK, [0], 4) = 0
+ioctl(5, FIONREAD, [0])                 = 0
+brk(0x1ffe000)                          = 0x1ffe000
+read(5, 0x1ffb100, 4159)                = -1 EAGAIN (Resource temporarily unavailable)
+epoll_ctl(4, EPOLL_CTL_ADD, 5, {EPOLLIN|EPOLLERR|EPOLLHUP|EPOLLRDHUP, {u32=5, u64=5}}) = 0
+accept4(3, 0x7ffe6fb1d400, [112], SOCK_CLOEXEC|SOCK_NONBLOCK) = -1 EAGAIN (Resource temporarily unavailable)
+epoll_pwait(4, {{EPOLLIN|EPOLLRDHUP, {u32=5, u64=5}}}, 65537, 1000, NULL, 8) = 1
+ioctl(5, FIONREAD, [0])                 = 0
+read(5, "", 4159)                       = 0
+shutdown(5, SHUT_WR)                    = 0
+recvfrom(5, "", 16384, MSG_TRUNC|MSG_DONTWAIT|MSG_NOSIGNAL, NULL, NULL) = 0
+epoll_ctl(4, EPOLL_CTL_DEL, 5, 7ffe6fb1d3e0) = 0
+close(5)                                = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, {}, 65537, 1000, NULL, 8) = 0
+epoll_pwait(4, Process 1251 detached
+ <detached ...>
+2018-12-10 22:56:31: (server.c.944) [note] graceful shutdown started 
+2018-12-10 22:56:31: (server.c.2023) server stopped by UID = 0 PID = 0 
