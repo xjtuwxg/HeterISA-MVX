@@ -82,6 +82,8 @@ int main(int argc, char **argv)
 
 		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
+		//long long tmp;
+		//for (int i = 0; i < 6; i++) {tmp = args[i]; tmp++;}
 		pre_syscall(syscall_num, args);
 #ifdef __x86_64__
 		/* Follower variant has to wait the master variant' input */

@@ -51,7 +51,6 @@ long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[])
 	struct iovec iov;
 	iov.iov_base = regs;
 	iov.iov_len = sizeof(*regs);
-        //if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
         if (ptrace(PTRACE_GETREGSET, pid, 1, &iov) == -1)
 		FATAL("ptrace_getregset error %s.", strerror(errno));
         syscall_num = arm64_get_sc_args(*regs, args);

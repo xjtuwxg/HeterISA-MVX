@@ -101,6 +101,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	switch (syscall_num) {
 	/* The following syscalls are only handled here for the retval. */
 	case SYS_accept:
+	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 		sem_getvalue(&ringbuf->sem, &val);
@@ -153,8 +154,8 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 	monitor_buf = malloc(child_cnt+8);
 	if (child_fd != 3) {
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
-		      __func__, retval, child_cnt);
+		//PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
+		//      __func__, retval, child_cnt);
 
 		msg.syscall = 0;	// SYS_read x86
 		if (retval > 0) {	// read something correct
@@ -162,14 +163,14 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval+16);
-			PRINT("write ret: %d. retval: %lld. errno %d\n",
-				ret, retval, errno);
+			//PRINT("write ret: %d. retval: %lld. errno %d\n",
+			//	ret, retval, errno);
 		} else {		// read unsuccessful, ret negative
 			msg.len = 0;
 			msg.retval = retval;
 			ret = write(fd, (void*)&msg, 16);
-			PRINT("write ret: %d. retval: %lld. msg len 16\n",
-				ret, retval);
+			//PRINT("write ret: %d. retval: %lld. msg len 16\n",
+			//	ret, retval);
 		}
 	}
 	free(monitor_buf);
@@ -191,8 +192,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
 
-	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
-	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
+	//PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
+	//      args[0], args[1], args[2], args[3], args[4], args[5], retval);
 
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
@@ -214,8 +215,8 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
 	//fsync(fd);
-	PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
-	      ret, errno, x86_epoll_len, events_len);
+	//PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
+	//      ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
 }
@@ -227,20 +228,16 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
-	//char buf[20];
-	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
+//	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
 
 	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
 	 * send it */
-	//sprintf(buf, "%llx", retval);
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
-	//memcpy(msg.buf, buf, msg.len);
 	ret = write(fd, &msg, 16);
-	//fsync(fd);
 
-	PRINT("** %s: write %d bytes.\n", __func__, ret);
+//	PRINT("** %s: write %d bytes.\n", __func__, ret);
 }
 
 /**
@@ -255,19 +252,20 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
 		master_sys_read(pid, fd, args, retval);
-		PRINT("master cnt: %d >>>>>\n", ++cnt);
+		//PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
-		PRINT("master cnt: %d >>>>>\n", ++cnt);
+		//PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 
 	/* The following syscalls only have to send the retval. */
 	case SYS_accept:
+	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 		master_syscall_return(fd, syscall_num, retval);
-		PRINT("master cnt: %d >>>>>\n", ++cnt);
+		//PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
 	}
 
