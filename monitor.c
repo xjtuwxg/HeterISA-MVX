@@ -88,6 +88,17 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		}
 #endif
 		break;
+	case SYS_getsockopt:
+		{
+			char buf[128];
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
+			update_child_data(pid, args[3], (char*)rmsg->buf,
+				rmsg->len);
+		}
+		break;
 	}
 }
 
@@ -122,6 +133,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	 * are handled again here for the retval. */
 	case SYS_read:
 	case SYS_epoll_pwait:
+	case SYS_getsockopt:
 		PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
@@ -156,7 +168,6 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		get_child_data(pid, monitor_buf, child_buf, child_cnt);
 		//PRINT("%s: child actual read %lld bytes, child cnt %lu\n",
 		//      __func__, retval, child_cnt);
-
 		msg.syscall = 0;	// SYS_read x86
 		if (retval > 0) {	// read something correct
 			msg.len = retval;
@@ -194,7 +205,6 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 
 	//PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
 	//      args[0], args[1], args[2], args[3], args[4], args[5], retval);
-
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
 	events = malloc(events_len);
@@ -214,11 +224,37 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 	msg.retval = retval;
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
-	//fsync(fd);
 	//PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
 	//      ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
+}
+
+/**
+ * Inline function for SYS_getsockopt on master node.
+ *    int getsockopt(int sockfd, int level, int optname,
+ *                     void *optval, socklen_t *optlen);
+ * Only cares about the args[3],args[4] and retval.
+ * */
+static inline void master_sys_getsockopt(pid_t pid, int fd, long long args[],
+					 long long retval)
+{
+	int ret = 0;
+	char *optval;
+	unsigned int optlen = 0; //args[4];
+
+	PRINT("getsockopt: %lld, %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	      args[0], args[1], args[2], args[3], args[4], retval);
+	get_child_data(pid, (char*)&optlen, args[4], 4);
+	optval = malloc(optlen);
+	get_child_data(pid, (char*)&optlen, args[3], optlen);
+	PRINT("optlen 0x%x, optval %s\n", optlen, optval);
+	msg.syscall = 55;	// SYS_getsockopt x86
+	msg.len = optlen;
+	msg.retval = retval;
+	memcpy(msg.buf, optval, optlen);
+	ret = write(fd, (void*)&msg, optlen+16);
+	free(optval);
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
@@ -229,14 +265,12 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
 //	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
-
 	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
 	 * send it */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, &msg, 16);
-
 //	PRINT("** %s: write %d bytes.\n", __func__, ret);
 }
 
@@ -257,6 +291,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
 		//PRINT("master cnt: %d >>>>>\n", ++cnt);
+		break;
+	case SYS_getsockopt:
+		master_sys_getsockopt(pid, fd, args, retval);
 		break;
 
 	/* The following syscalls only have to send the retval. */
