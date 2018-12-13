@@ -135,7 +135,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_read:
 	case SYS_epoll_pwait:
 	case SYS_getsockopt:
-		PRINT("Update retval of syscall %ld\n", syscall_num);
+		//PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
@@ -158,6 +158,7 @@ void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
 		break;
 #endif
 	}

@@ -3,4 +3,5 @@
 [  2] = {3, "open", "char *pathname", "int flags", "mode_t mode"},
 [  9] = {6, "mmap", "void *addr", "size_t lenght", "int prot", "int flags", "int fd", "off_t offset"},
 [ 20] = {3, "writev", "int fd", "iovec *iov", "int count"},
+[ 40] = {4, "sendfile", "int ofd", "int ifd", "off_t *ofs", "size_t count"},
 [335] = {0, "endsyscall"},
