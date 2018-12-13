@@ -116,6 +116,7 @@ int main(int argc, char **argv)
 		/* Follower wants to wait leader's syscall retval */
 		if (!skip_post_handling)
 			follower_wait_post_syscall(pid, syscall_num);
+		follower_waitpost_syscall_sel(pid, syscall_num, args);
 		RAW_PRINT("\n");
 #endif
 	}

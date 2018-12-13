@@ -145,6 +145,23 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 #endif
 }
 
+static inline void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
+					      long long args[])
+{
+	long long master_retval;
+	msg_t rmsg;
+	switch (syscall_num) {
+#if __x86_64__
+	case SYS_writev:
+		if (args[0] != 5) break;
+		sem_wait(&ringbuf->sem);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		break;
+#endif
+	}
+}
 
 /* ===== Those master syscall handlers only care about the params. ===== */
 /**
@@ -298,6 +315,8 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		break;
 
 	/* The following syscalls only have to send the retval. */
+	case SYS_writev:
+		if (args[0] != 5) break;
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_fcntl:
