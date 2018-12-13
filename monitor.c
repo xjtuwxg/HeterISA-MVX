@@ -115,6 +115,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
+	case SYS_setsockopt:
 		sem_getvalue(&ringbuf->sem, &val);
 		PRINT(">>>>> follower is handling [%3ld] before sem_wait. %d\n",
 		      syscall_num, val);
@@ -301,6 +302,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
+	case SYS_setsockopt:
 		master_syscall_return(fd, syscall_num, retval);
 		//PRINT("master cnt: %d >>>>>\n", ++cnt);
 		break;
