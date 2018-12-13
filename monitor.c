@@ -145,8 +145,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 #endif
 }
 
-static inline void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
-					      long long args[])
+void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
+				      long long args[])
 {
 	long long master_retval;
 	msg_t rmsg;
