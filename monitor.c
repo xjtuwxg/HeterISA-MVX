@@ -90,13 +90,21 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		break;
 	case SYS_getsockopt:
 		{
-			char buf[128];
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
 			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
 				rmsg->len);
+		}
+		break;
+	case SYS_sendfile:
+		{
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+			update_child_data(pid, args[2], (char*)rmsg->buf,
+				rmsg->len);
+			PRINT("len %u\n", rmsg->len);
 		}
 		break;
 	}
@@ -120,7 +128,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		PRINT(">>>>> follower is handling [%3ld] before sem_wait. %d\n",
 		      syscall_num, val);
 		sem_wait(&ringbuf->sem);
-		sem_getvalue(&ringbuf->sem, &val);
+		//sem_getvalue(&ringbuf->sem, &val);
 		//PRINT("after sem_wait. %d\n", val);
 
 		ringbuf_pop(ringbuf, &rmsg);
@@ -135,6 +143,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_read:
 	case SYS_epoll_pwait:
 	case SYS_getsockopt:
+	case SYS_sendfile:
 		//PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
@@ -276,6 +285,28 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, long long args[],
 	free(optval);
 }
 
+/**
+ * Inline hanlder for SYS_sendfile on master. See 'man sendfile'.
+ *   ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
+ * Cares about the 'offset + retval'
+ * */
+static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
+					 long long retval)
+{
+	int ret = 0;
+	off_t offset = 0;
+	//size_t len = sizeof(offset);
+	PRINT("sendfile: %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	      args[0], args[1], args[2], args[3], retval);
+	get_child_data(pid, (char*)&offset, args[2], sizeof(off_t));
+	PRINT("off 0x%lx, count %lld. %lu\n", offset, args[3], sizeof(off_t));
+	msg.syscall = 40;	// SYS_sendfile x86
+	msg.len = sizeof(off_t);
+	msg.retval = retval;
+	memcpy(msg.buf, (char*)&offset, sizeof(off_t));
+	ret = write(fd, (void*)&msg, sizeof(off_t)+16);
+}
+
 /* ===== Those master syscall handlers only care about the retval. ===== */
 /**
  * Inline funtion to handle ret only syscalls on master node.
@@ -313,6 +344,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		break;
 	case SYS_getsockopt:
 		master_sys_getsockopt(pid, fd, args, retval);
+		break;
+	case SYS_sendfile:
+		master_sys_sendfile(pid, fd, args, retval);
 		break;
 
 	/* The following syscalls only have to send the retval. */
