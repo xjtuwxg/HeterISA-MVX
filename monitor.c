@@ -114,21 +114,21 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 
 void follower_wait_post_syscall(pid_t pid, long syscall_num)
 {
-	int val;
+	//int val;
 	long long master_retval;
 	msg_t rmsg;
 
 #if __x86_64__
 	switch (syscall_num) {
-	/* The following syscalls are only handled here for the retval. */
+	/* The following syscalls are ONLY handled here for the retval. */
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
-		sem_getvalue(&ringbuf->sem, &val);
-		PRINT(">>>>> follower is handling [%3ld] before sem_wait. %d\n",
-		      syscall_num, val);
+	case SYS_close:
+		//sem_getvalue(&ringbuf->sem, &val);
+		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
 		sem_wait(&ringbuf->sem);
 		//sem_getvalue(&ringbuf->sem, &val);
 		//PRINT("after sem_wait. %d\n", val);
@@ -140,6 +140,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		break;
+
 	/* The following syscalls were handled before for the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
@@ -354,6 +355,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	/* The following syscalls only have to send the retval. */
 	case SYS_writev:
 		if (args[0] != 5) break;
+	case SYS_close:
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_fcntl:
