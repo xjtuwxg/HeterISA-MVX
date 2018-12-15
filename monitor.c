@@ -96,6 +96,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
 				rmsg->len);
+			syscall_getpid(pid);
 		}
 		break;
 	case SYS_sendfile:
@@ -105,6 +106,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			update_child_data(pid, args[2], (char*)rmsg->buf,
 				rmsg->len);
 			PRINT("len %u\n", rmsg->len);
+			syscall_getpid(pid);
 		}
 		break;
 	}
@@ -329,7 +331,7 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
  * the result to slaves.
  * Data will be sent with a msg_t data structure (containing syscall,len,buf)
  * */
-static int cnt = 0;
+//static int cnt = 0;
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval)
 {
