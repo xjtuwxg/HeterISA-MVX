@@ -126,7 +126,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
-	case SYS_close:
+	//case SYS_close:
 		//sem_getvalue(&ringbuf->sem, &val);
 		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
 		sem_wait(&ringbuf->sem);
@@ -355,7 +355,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	/* The following syscalls only have to send the retval. */
 	case SYS_writev:
 		if (args[0] != 5) break;
-	case SYS_close:
+	//case SYS_close:
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_fcntl:

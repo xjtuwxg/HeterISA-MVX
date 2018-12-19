@@ -19,5 +19,5 @@ testall:
 	$(MAKE) -C test
 
 clean:
-	rm -f mvx_monitor
+	rm -f mvx_monitor debug_monitor
 	$(MAKE) -C test clean
