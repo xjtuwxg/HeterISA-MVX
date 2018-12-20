@@ -32,7 +32,6 @@ typedef struct _syscall_entry {
     } sc_arg;
 } syscall_entry_t;
 
-
 /* define the "sensitive" syscall number, params that we want to intercept */
 static const syscall_entry_t syscalls[] = {
 /* syscall entries are from "strace/linux/x86_64/syscallent.h" */
@@ -45,12 +44,26 @@ static const syscall_entry_t syscalls[] = {
 #endif
 };
 
+static const char* syscall_name[] = {
+#ifdef __x86_64__
+#include <x86/syscall.h>
+#endif
+#ifdef __aarch64__
+#include <arm64/syscall.h>
+#endif
+};
+
 void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);
 
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[]);
+/* Follower syscall handling code. */
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+			       int *skip_post_handling);
 void follower_wait_post_syscall(pid_t pid, long syscall_num);
+void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
+				      long long args[]);
 
+/* Master sync code. */
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval);
 

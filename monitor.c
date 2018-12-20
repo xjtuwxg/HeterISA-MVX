@@ -3,14 +3,15 @@
 #include "msg_socket.h"
 #include "ptrace.h"
 
+static int count = 0;
 /* @param: syscall num & arguments */
 void pre_syscall(long syscall, long long args[])
 {
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
-    fprintf(stderr, "[%3ld]\n", syscall);
-#if 0
+    fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
+#if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
@@ -42,104 +43,177 @@ void post_syscall(long syscall, long result)
 
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
  * MVX slave node */
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[])
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+			       int *skip_post_handling)
 {
 	int val;
+	msg_t *rmsg = NULL;
+	//msg_t *tmsg = NULL;
 	switch (syscall_num) {
-	case SYS_read:	// Wait and get stdin from master variant.
-		if (args[0] == 5) {
-		//if (args[0] == 0) {
-			sem_getvalue(&msg.lock, &val);
-			PRINT("sys_read before sem_wait. %d\n", val);
-			sem_wait(&msg.lock);
-			sem_getvalue(&msg.lock, &val);
-			PRINT("after sem_wait. %d\n", val);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
-			      pid, args[1], msg.buf, msg.len);
-			update_child_data(pid, args[1], msg.buf, msg.len);
+	case SYS_read:	// Wait read buffer sent from master variant.
+		if (args[0] != 3) {
+			// Wait for the non-empty ringbuf.
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+
+			// If it's a normal read syscall, use the top msg_t to
+			// update the param, and delete it in post syscall handler.
+			if (rmsg->retval >= 0) {
+				update_child_data(pid, args[1], rmsg->buf,
+						  rmsg->len);
+			}
+
+			// If read returns negative number, nothing to handle
+			// here, just jmp to the post syscall handler.
 			syscall_getpid(pid);
+		} else {
+			*skip_post_handling = 1;
 		}
 		break;
 	case SYS_epoll_pwait:
 #if __x86_64__
 		{
-			//msg_epoll_t epmsg;
 			struct epoll_event events[16];
 
-			sem_getvalue(&msg.lock, &val);
-			PRINT("sys_epoll_wait before sem_wait. %d\n", val);
-			sem_wait(&msg.lock);
-			sem_getvalue(&msg.lock, &val);
-			PRINT("after sem_wait. %d\n", val);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %lu\n",
-			      pid, args[1], msg.buf, msg.len);
-			//memcpy(&epmsg, msg.buf, msg.len);
-			memcpy(events, msg.buf, msg.len);
-			//PRINT("epfd: %d, e #: %d, to: %d\n",
-			//      epmsg.epfd, epmsg.event_num,
-			//      epmsg.timeout);
-			/* updating the epoll_pwait syscall parameters */
-			//ptrace(PTRACE_POKEUSER, pid, 8*RDI, epmsg.epfd);
-			//ptrace(PTRACE_POKEUSER, pid, 8*RDX, 64);
-			//ptrace(PTRACE_POKEUSER, pid, 8*R10, epmsg.timeout);
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+
+			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
+			memcpy(events, rmsg->buf, rmsg->len);
 			update_child_data(pid, args[1], (char*)events,
-				msg.len);
-			//update_child_data(pid, args[1], (char*)(epmsg.events),
-			//	epmsg.event_num * sizeof(struct epoll_event));
+				rmsg->len);
+
 			syscall_getpid(pid);
 		}
 #endif
+		break;
+	case SYS_getsockopt:
+		{
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
+			update_child_data(pid, args[3], (char*)rmsg->buf,
+				rmsg->len);
+			syscall_getpid(pid);
+		}
+		break;
+	case SYS_sendfile:
+		{
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+			update_child_data(pid, args[2], (char*)rmsg->buf,
+				rmsg->len);
+			PRINT("len %u\n", rmsg->len);
+			syscall_getpid(pid);
+		}
 		break;
 	}
 }
 
 void follower_wait_post_syscall(pid_t pid, long syscall_num)
 {
-	int val;
+	//int val;
 	long long master_retval;
-	switch (syscall_num) {
-	case SYS_accept:
+	msg_t rmsg;
+
 #if __x86_64__
-		sem_getvalue(&msg.lock, &val);
-		PRINT("sys_accept before sem_wait. %d\n", val);
-		sem_wait(&msg.lock);
-		sem_getvalue(&msg.lock, &val);
-		PRINT("after sem_wait. %d\n", val);
-		sscanf(msg.buf, "%llx", &master_retval);
-		PRINT("%s: msg.buf: 0x%s, msg.len: %lu. master_retval %lld\n",
-		      __func__, msg.buf, msg.len, master_retval);
+	switch (syscall_num) {
+	/* The following syscalls are ONLY handled here for the retval. */
+	case SYS_accept:
+	case SYS_accept4:
+	case SYS_fcntl:
+	case SYS_epoll_ctl:
+	case SYS_setsockopt:
+	//case SYS_close:
+		//sem_getvalue(&ringbuf->sem, &val);
+		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
+		sem_wait(&ringbuf->sem);
+		//sem_getvalue(&ringbuf->sem, &val);
+		//PRINT("after sem_wait. %d\n", val);
+
+		ringbuf_pop(ringbuf, &rmsg);
+		//sscanf(rmsg.buf, "%llx", &master_retval);
+		master_retval = rmsg.retval;
+		PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
+		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-#endif
 		break;
+
+	/* The following syscalls were handled before for the params, and they
+	 * are handled again here for the retval. */
+	case SYS_read:
+	case SYS_epoll_pwait:
+	case SYS_getsockopt:
+	case SYS_sendfile:
+		//PRINT("Update retval of syscall %ld\n", syscall_num);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
+		break;
+	}
+#endif
+}
+
+void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
+				      long long args[])
+{
+	long long master_retval;
+	msg_t rmsg;
+	switch (syscall_num) {
+#if __x86_64__
+	case SYS_writev:
+		if (args[0] != 5) break;
+		sem_wait(&ringbuf->sem);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
+		break;
+#endif
 	}
 }
 
+/* ===== Those master syscall handlers only care about the params. ===== */
 /**
  * Inline funtion to handle SYS_read on master node.
  *    ssize_t read(int fd, void *buf, size_t count)
+ *    "retval" is the actual length of the string writen to the buffer.
  * */
 static inline void master_sys_read(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
 	int child_fd = args[0];
 	long long child_buf = args[1];
-	size_t child_cnt = args[2];
-	//size_t child_cnt = retval;
+	size_t child_count = args[2];
 	char *monitor_buf = NULL;
 	int ret = 0;
+	msg_t rmsg;
+	char buf[20];
 
-	assert(child_cnt > 0);
-	monitor_buf = malloc(child_cnt+8);
-	if (child_fd == 5) {
-	//if (child_fd == 0) {
-		get_child_data(pid, monitor_buf, child_buf, child_cnt);
-		PRINT("%s. cnt %lld. child_cnt %lu\n", monitor_buf, retval,
-		      child_cnt);
-		ret = write(fd, monitor_buf, retval);
-		PRINT("!!!! write ret: %d. retval: %lld. errno %d\n",
-		      ret, retval, errno);
+	assert(child_count > 0);
+	monitor_buf = malloc(child_count+8);
+
+	if (child_fd != 3) {	// TODO: Selectively fd handling rules.
+		// We first want to retrieve child memory with params.
+		get_child_data(pid, monitor_buf, child_buf, child_count);
+		// We then want to send syscall info to Followers.
+		msg.syscall = 0;	// SYS_read x86
+		if (retval > 0) {	// read something correct
+			msg.len = retval;
+			msg.retval = retval;
+			memcpy(msg.buf, monitor_buf, retval);
+			ret = write(fd, (void*)&msg, retval+16);
+		} else {		// read unsuccessful, ret negative
+			msg.len = 0;
+			msg.retval = retval;
+			ret = write(fd, (void*)&msg, 16);
+		}
 	}
 	free(monitor_buf);
+	assert(ret != -1);
 }
 
 /**
@@ -147,60 +221,116 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
  *    int epoll_pwait(int epfd, struct epoll_event *events,
  *			int maxevents, int timeout,
  *                      const sigset_t *sigmask);
+ * Cares only about the 2nd parameter (args[1]).
+ * The retval is the number of epoll_event
  * */
 static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
 		      long long retval)
 {
-	//msg_epoll_t epoll_msg;		// contains arch specific code for universal epoll_event.
 	struct epoll_event *events;	// 12 bytes on x86, 16 bytes on arm
 	struct epoll_event_x86 *x86_events;
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
 
-	//epoll_msg.epfd = args[0];
-	//epoll_msg.event_num = retval;
-	//epoll_msg.maxevents = args[2];
-	//epoll_msg.timeout = args[3];
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
 	events = malloc(events_len);
 	x86_events = malloc(events_len);
 
-
-	//get_child_data(pid, (char*)(epoll_msg.events), args[1], events_len);
 	// Get the child epoll_event data on arm.
 	get_child_data(pid, (char*)events, args[1], events_len);
-	PRINT("epoll_pwait: %lld, 0x%llx, %lld, %lld, %lld, %lld | %lld\n",
-	      args[0], args[1], args[2], args[3], args[4], args[5], retval);
-	//PRINT("epoll: events 0x%x, data u64 0x%lx\n",
-	//      epoll_msg.events[0].events, epoll_msg.events[0].data.u64);
-	// Convert epoll_data to x86 format.
+	// Convert epoll events to x86 data format.
 	for (i = 0; i < retval; i++) {
 		x86_events[i].events = events[i].events;
 		x86_events[i].data = events[i].data;
 	}
-	//ret = write(fd, (void*)&epoll_msg, sizeof(int)*4+events_len);
-	ret = write(fd, (void*)x86_events, x86_epoll_len);
-	PRINT("<%s> epoll_pwait write ret: %d. errno %d\n",
-	      __func__, ret, errno);
+
+	// Send epoll_event through msg_t variable
+	msg.syscall = 281;	// SYS_epoll_pwait x86
+	msg.len = x86_epoll_len;
+	msg.retval = retval;
+	memcpy(msg.buf, x86_events, x86_epoll_len);
+	ret = write(fd, (void*)&msg, x86_epoll_len+16);
+	//PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
+	//      ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
-}
-
-static inline void master_sys_accept(pid_t pid, int fd, long long args[],
-		      long long retval)
-{
-	int ret = 0;
-	char buf[20];
-	PRINT("retval: 0x%llx\n", retval);
-	sprintf(buf, "%llx", retval);
-	ret = write(fd, buf, strlen(buf));
-	PRINT("%s: buf %s, ret %d. len %lu\n", __func__, buf, ret, strlen(buf));
+	assert(ret != -1);
 }
 
 /**
- * The synchronization function on master node, executing syscall and forward
- * the result to slaves.
+ * Inline function for SYS_getsockopt on master node.
+ *    int getsockopt(int sockfd, int level, int optname,
+ *                     void *optval, socklen_t *optlen);
+ * Only cares about the args[3],args[4] and retval.
+ * */
+static inline void master_sys_getsockopt(pid_t pid, int fd, long long args[],
+					 long long retval)
+{
+	int ret = 0;
+	char *optval;
+	unsigned int optlen = 0; //args[4];
+
+	PRINT("getsockopt: %lld, %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	      args[0], args[1], args[2], args[3], args[4], retval);
+	get_child_data(pid, (char*)&optlen, args[4], 4);
+	optval = malloc(optlen);
+	get_child_data(pid, (char*)&optlen, args[3], optlen);
+	PRINT("optlen 0x%x, optval %s\n", optlen, optval);
+	msg.syscall = 55;	// SYS_getsockopt x86
+	msg.len = optlen;
+	msg.retval = retval;
+	memcpy(msg.buf, optval, optlen);
+	ret = write(fd, (void*)&msg, optlen+16);
+	free(optval);
+	assert(ret != -1);
+}
+
+/**
+ * Inline hanlder for SYS_sendfile on master. See 'man sendfile'.
+ *   ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
+ * Cares about the 'offset + retval'
+ * */
+static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
+					 long long retval)
+{
+	int ret = 0;
+	off_t offset = 0;
+	//size_t len = sizeof(offset);
+	PRINT("sendfile: %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	      args[0], args[1], args[2], args[3], retval);
+	get_child_data(pid, (char*)&offset, args[2], sizeof(off_t));
+	PRINT("off 0x%lx, count %lld. %lu\n", offset, args[3], sizeof(off_t));
+	msg.syscall = 40;	// SYS_sendfile x86
+	msg.len = sizeof(off_t);
+	msg.retval = retval;
+	memcpy(msg.buf, (char*)&offset, sizeof(off_t));
+	ret = write(fd, (void*)&msg, sizeof(off_t)+16);
+	assert(ret != -1);
+}
+
+/* ===== Those master syscall handlers only care about the retval. ===== */
+/**
+ * Inline funtion to handle ret only syscalls on master node.
+ * */
+static inline void master_syscall_return(int fd, long syscall, long long retval)
+{
+	int ret = 0;
+//	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
+	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
+	 * send it */
+	msg.syscall = syscall;	// syscall number on x86 platform
+	msg.len = 0;
+	msg.retval = retval;
+	ret = write(fd, &msg, 16);
+//	PRINT("** %s: write %d bytes.\n", __func__, ret);
+	assert(ret != -1);
+}
+
+/**
+ * The synchronization function on master node, executing the syscalls and
+ * forward the result to slaves. Data will be sent with a msg_t data
+ * structure (containing syscall num + message len + memory content buf)
  * */
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval)
@@ -212,8 +342,23 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_epoll_pwait:
 		master_sys_epoll_pwait(pid, fd, args, retval);
 		break;
+	case SYS_getsockopt:
+		master_sys_getsockopt(pid, fd, args, retval);
+		break;
+	case SYS_sendfile:
+		master_sys_sendfile(pid, fd, args, retval);
+		break;
+
+	/* The following syscalls only have to send the retval. */
+	case SYS_writev:
+		if (args[0] != 5) break;
+	//case SYS_close:
 	case SYS_accept:
-		master_sys_accept(pid, fd, args, retval);
+	case SYS_accept4:
+	case SYS_fcntl:
+	case SYS_epoll_ctl:
+	case SYS_setsockopt:
+		master_syscall_return(fd, syscall_num, retval);
 		break;
 	}
 

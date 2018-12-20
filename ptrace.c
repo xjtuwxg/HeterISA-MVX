@@ -51,7 +51,6 @@ long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[])
 	struct iovec iov;
 	iov.iov_base = regs;
 	iov.iov_len = sizeof(*regs);
-        //if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1)
         if (ptrace(PTRACE_GETREGSET, pid, 1, &iov) == -1)
 		FATAL("ptrace_getregset error %s.", strerror(errno));
         syscall_num = arm64_get_sc_args(*regs, args);
@@ -108,18 +107,24 @@ int update_child_data(pid_t pid, long long dst, char *src, size_t len)
 	if (cnt*sizeof(long long) < len) cnt++;	// verify whether need cnt+1
 	for (i = 0; i < cnt; i++) {
 		memcpy(input.str, src+i*8, 8);
-		PRINT("input: %s (0x%lx). cnt: %lu. i: %lu\n", input.str,
-		      input.val, cnt, i);
+		//PRINT("input: %s (0x%lx). cnt: %lu. i: %lu\n", input.str,
+		//      input.val, cnt, i);
 		ret = ptrace(PTRACE_POKEDATA, pid, dst+i*8, input.val);
 		if (ret) FATAL("%s error", __func__);
-		PRINT("POKEdata ret %ld\n", ret);
+		//PRINT("POKEdata ret %ld\n", ret);
 	}
 
 	return 0;
 }
 
 /**
- * Copy data from child process.
+ * Copy data from child memory space.
+ * With PTRACE_GETREGS, we can only get the child syscall param value, not the
+ * real memory content. To get child memory content, we have to use
+ * PTRACE_PEEKDATA and retrieve memory in 8 bytes granularity.
+ * @dst: monitor buf address.
+ * @src: child (tracee) memory start address.
+ * @len: the length of the memory to read.
  * */
 int get_child_data(pid_t pid, char *dst, long long src, size_t len)
 {
@@ -127,7 +132,7 @@ int get_child_data(pid_t pid, char *dst, long long src, size_t len)
 	size_t i;
 	memset(&input, 0, sizeof(input));
 
-	if (cnt*8 < len) cnt++;	// verify whether need cnt+1
+	if (cnt*8 < len) cnt++;	// if cnt%8 != 0, we need cnt++
 	for (i = 0; i < cnt; i++) {
 		input.val = ptrace(PTRACE_PEEKDATA, pid, src+8*i, 0);
 		memcpy(dst+8*i, input.str, 8);
