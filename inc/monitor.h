@@ -59,6 +59,11 @@ static const char* dir_whitelist[] = {
 #include "whitelist.h"
 };
 
+/* Syscall convert table (arm64 => x86_64). */
+static const int syscall_tbl[512] = {
+#include "syscall_tbl.h"
+};
+
 /* Store the "real fd" with the "virtual fd" as the index. */
 static int fd_vtab[128];
 

@@ -139,7 +139,6 @@ static inline void follower_sys_open(pid_t pid, long syscall_num)
 	ringbuf_pop(ringbuf, &rmsg);
 	master_retval = rmsg.retval;
 
-
 }
 
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
@@ -381,7 +380,7 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		      long long retval)
 {
-	long follower_syscall_num = 0;
+	//long follower_syscall_num = 0;
 	switch (syscall_num) {
 	case SYS_read:	// Sync the input to slave variant.
 		master_sys_read(pid, fd, args, retval);
@@ -401,33 +400,24 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 
 	/* The following syscalls only have to send the retval. */
 	case SYS_writev:
-		follower_syscall_num = 20;
 		if (args[0] != 5) break;
 	/* The following syscalls will create new fd. */
 	case SYS_openat:
-		follower_syscall_num = 2;
 	case SYS_accept:// ret a descriptor of acceted socket
-		follower_syscall_num = 43;
 	case SYS_accept4:
-		follower_syscall_num = 288;
-#if __x86_64__
-	case SYS_epoll_create:
-		follower_syscall_num = 213;
+#if __x86_64__	// master is alway arm64, no need to add this line
+//	case SYS_epoll_create:
 #endif
 	case SYS_epoll_create1:
-		follower_syscall_num = 291;
 	/* This guy delete fd. */
 	case SYS_close:
-		follower_syscall_num = 3;
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation
-		follower_syscall_num = 72;
 	case SYS_epoll_ctl:
-		follower_syscall_num = 233;
 	case SYS_setsockopt:
-		follower_syscall_num = 54;
-		master_syscall_return(fd, follower_syscall_num, retval);
+		assert(syscall_tbl[syscall_num]);
+		master_syscall_return(fd, syscall_tbl[syscall_num], retval);
 		break;
 	}
 
