@@ -105,7 +105,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			syscall_getpid(pid);
 		}
 		break;
-#if 0
 #if __aarch64__
 	case SYS_openat:
 #endif
@@ -116,10 +115,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
 #if __aarch64__
-			alert(SYS_openat == rmsg->syscall);
+			assert(SYS_openat == rmsg->syscall);
 #endif
 #if __x86_64__
-			alert(SYS_open == rmsg->syscall);
+			assert(SYS_open == rmsg->syscall);
 #endif
 			syscall_getpid(pid);
 		}
@@ -127,7 +126,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 	case SYS_close:
 		//if (fd_vtab[master_retval] == syscall_retval);
 		break;
-#endif
 	}
 }
 
@@ -168,7 +166,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
 
-	/* Handle separately and fill the fd_vtab. */
+	/* Handle separately and fill the fd_vtab. The following syscalls were
+	 * handled before. */
 	case SYS_open:
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
@@ -364,13 +363,13 @@ static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
 static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
-//	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
+	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
 	/* Prepare the msg_t and send. */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, &msg, 16);
-//	PRINT("** %s: write %d bytes.\n", __func__, ret);
+	PRINT("** %s: write %d bytes.\n", __func__, ret);
 	assert(ret != -1);
 }
 
