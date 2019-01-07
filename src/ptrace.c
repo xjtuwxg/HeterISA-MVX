@@ -67,7 +67,7 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
         if (ptrace(PTRACE_GETREGS, pid, 0, regs) == -1) {
 		fputs(" = ?\n", stderr);
 		if (errno == ESRCH) {	// No such process
-			*term = 1;
+			if (term != NULL) *term = 1;
 			PRINT("%s: rdi: %lld.\n", strerror(errno), regs->rdi);
 			return 0;
 			//exit(regs->rdi); // system call was _exit(2) or similar
@@ -83,7 +83,7 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
         if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov) == -1) {
 		fputs(" = ?\n", stderr);
 		if (errno == ESRCH) {	// No such process
-			*term = 1;
+			if (term != NULL) *term = 1;
 			//PRINT("x0: %lld.\n", regs->regs[0]);
 			return 0;
 		}

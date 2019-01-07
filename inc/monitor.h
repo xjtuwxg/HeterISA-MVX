@@ -32,7 +32,7 @@ typedef struct _syscall_entry {
     } sc_arg;
 } syscall_entry_t;
 
-/* define the "sensitive" syscall number, params that we want to intercept */
+/* Define the "sensitive" syscall number, params that we want to intercept */
 static const syscall_entry_t syscalls[] = {
 /* syscall entries are from "strace/linux/x86_64/syscallent.h" */
 #ifdef __x86_64__
@@ -44,6 +44,7 @@ static const syscall_entry_t syscalls[] = {
 #endif
 };
 
+/* All syscall names and number, converted from musl. */
 static const char* syscall_name[] = {
 #ifdef __x86_64__
 #include <x86/syscall.h>
@@ -53,13 +54,23 @@ static const char* syscall_name[] = {
 #endif
 };
 
+/* The dir whitelist. */
+static const char* dir_whitelist[] = {
+#include "whitelist.h"
+};
+
+/* Store the "real fd" with the "virtual fd" as the index. */
+static int fd_vtab[128];
+
 void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);
 
 /* Follower syscall handling code. */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			       int *skip_post_handling);
-void follower_wait_post_syscall(pid_t pid, long syscall_num);
+//void follower_wait_post_syscall(pid_t pid, long syscall_num);
+void follower_wait_post_syscall(pid_t pid, long syscall_num,
+				long long syscall_retval);
 void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
 				      long long args[]);
 

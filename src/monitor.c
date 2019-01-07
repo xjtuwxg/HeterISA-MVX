@@ -48,21 +48,19 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 {
 	int val;
 	msg_t *rmsg = NULL;
-	//msg_t *tmsg = NULL;
+
 	switch (syscall_num) {
 	case SYS_read:	// Wait read buffer sent from master variant.
 		if (args[0] != 3) {
 			// Wait for the non-empty ringbuf.
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param, and delete it in post syscall handler.
 			if (rmsg->retval >= 0) {
 				update_child_data(pid, args[1], rmsg->buf,
 						  rmsg->len);
 			}
-
 			// If read returns negative number, nothing to handle
 			// here, just jmp to the post syscall handler.
 			syscall_getpid(pid);
@@ -77,13 +75,11 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg->buf, rmsg->len);
 			update_child_data(pid, args[1], (char*)events,
 				rmsg->len);
-
 			syscall_getpid(pid);
 		}
 #endif
@@ -92,8 +88,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-			PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
-			    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
+			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			//    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
 				rmsg->len);
 			syscall_getpid(pid);
@@ -109,10 +105,47 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			syscall_getpid(pid);
 		}
 		break;
+#if 0
+#if __aarch64__
+	case SYS_openat:
+#endif
+#if __x86_64__
+	case SYS_open:
+#endif
+		{
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+#if __aarch64__
+			alert(SYS_openat == rmsg->syscall);
+#endif
+#if __x86_64__
+			alert(SYS_open == rmsg->syscall);
+#endif
+			syscall_getpid(pid);
+		}
+		break;
+	case SYS_close:
+		//if (fd_vtab[master_retval] == syscall_retval);
+		break;
+#endif
 	}
 }
 
-void follower_wait_post_syscall(pid_t pid, long syscall_num)
+
+static inline void follower_sys_open(pid_t pid, long syscall_num)
+{
+	long long master_retval;
+	msg_t rmsg;
+
+	sem_wait(&ringbuf->sem);
+	ringbuf_pop(ringbuf, &rmsg);
+	master_retval = rmsg.retval;
+
+
+}
+
+void follower_wait_post_syscall(pid_t pid, long syscall_num,
+				long long syscall_retval)
 {
 	//int val;
 	long long master_retval;
@@ -126,22 +159,37 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num)
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
-	//case SYS_close:
-		//sem_getvalue(&ringbuf->sem, &val);
 		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
 		sem_wait(&ringbuf->sem);
-		//sem_getvalue(&ringbuf->sem, &val);
-		//PRINT("after sem_wait. %d\n", val);
-
 		ringbuf_pop(ringbuf, &rmsg);
-		//sscanf(rmsg.buf, "%llx", &master_retval);
 		master_retval = rmsg.retval;
-		PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
-		      __func__, rmsg.buf, rmsg.len, master_retval);
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
+		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
 
-	/* The following syscalls were handled before for the params, and they
+	/* Handle separately and fill the fd_vtab. */
+	case SYS_open:
+		//follower_sys_open(pid, syscall_num);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		assert((master_retval >= 0) && (master_retval < 128));
+		assert((syscall_retval >= 0) && (syscall_retval < 128));
+		assert(master_retval >= syscall_retval);
+		// Stores the real retval(fd) with virtual one as index.
+		fd_vtab[master_retval] = syscall_retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
+		break;
+	case SYS_close:
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%lld\n", master_retval);
+		break;
+
+	/* The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
 	case SYS_epoll_pwait:
@@ -317,8 +365,7 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
 //	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
-	/* Convert retval of 'long long' into 'char[]', prepare the msg_t and
-	 * send it */
+	/* Prepare the msg_t and send. */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
@@ -348,14 +395,26 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_sendfile:
 		master_sys_sendfile(pid, fd, args, retval);
 		break;
+//	case SYS_openat:
+//		master_sys_openat_sel(pid, fd, args, retval);
+//		break;
 
 	/* The following syscalls only have to send the retval. */
 	case SYS_writev:
 		if (args[0] != 5) break;
-	//case SYS_close:
-	case SYS_accept:
+	/* The following syscalls will create new fd. */
+	case SYS_openat:
+	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
-	case SYS_fcntl:
+#if __x86_64__
+	case SYS_epoll_create:
+#endif
+	case SYS_epoll_create1:
+	/* This guy delete fd. */
+	case SYS_close:
+	/* The following syscalls manipulate fd, and the return value affects
+	 * code after that. */
+	case SYS_fcntl:	// manipulate fd, ret depends on the operation
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
 		master_syscall_return(fd, syscall_num, retval);

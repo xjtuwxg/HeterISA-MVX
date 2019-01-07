@@ -186,12 +186,13 @@ void process_data(int fd)
 	char buf[512];
 	msg_t *new_msg = malloc(sizeof(msg_t));	// not free in this func
 
-	/* Read the msg_t from socket fd: first read 16 bytes header, then
-	 * read the message buffer */
+	/* Read the msg_t from socket fd: read 16 bytes header first, then
+	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	MSG_PRINT("%s: syscall %d, len %u, flag %d, ret 0x%lx\n", __FILE__,
-		new_msg->syscall, new_msg->len, new_msg->flag, new_msg->retval);
+	MSG_PRINT("%s:%s syscall %d, len %u, flag %d, ret 0x%lx\n",
+		  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
+		  new_msg->flag, new_msg->retval);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);
@@ -225,11 +226,11 @@ void * msg_thread_main(void *args)
 		FATAL("epoll create error");
 	}
 	event.data.fd = listenfd;
-	//event.events = EPOLLIN | EPOLLET;
 	event.events = EPOLLIN;
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
 
+	/* Loop handling of the incoming connections and data messages. */
 	while (1) {
 		int nfds, i;
 		/* nfds, events are output values */

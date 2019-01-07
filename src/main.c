@@ -67,7 +67,8 @@ int main(int argc, char **argv)
 		skip_post_handling = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
-		if (WSTOPSIG(status) != 5) {
+		//if (WSTOPSIG(status) != 5) {
+		if (WSTOPSIG(status) != SIGTRAP) {
 			PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
 			      WSTOPSIG(status));
 			break;
@@ -113,7 +114,8 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait leader's syscall retval */
 		if (!skip_post_handling)
-			follower_wait_post_syscall(pid, syscall_num);
+			follower_wait_post_syscall(pid, syscall_num,
+						   syscall_retval);
 		follower_wait_post_syscall_sel(pid, syscall_num, args);
 		RAW_PRINT("\n");
 #endif
