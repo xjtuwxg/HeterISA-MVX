@@ -172,10 +172,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		assert((master_retval >= 0) && (master_retval < 128));
-		assert((syscall_retval >= 0) && (syscall_retval < 128));
-		assert(master_retval >= syscall_retval);
+		PRINT(">>> follower sys_open: syscall ret %ld, master ret %ld\n",
+		      syscall_retval, master_retval);
+		//assert((syscall_retval >= 0) && (syscall_retval < 128));
+		//assert(master_retval >= syscall_retval);
 		// Stores the real retval(fd) with virtual one as index.
-		fd_vtab[master_retval] = syscall_retval;
+		//fd_vtab[master_retval] = syscall_retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%lld\n", master_retval);
 		break;
