@@ -113,6 +113,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
+			PRINT("syscall %u\n", rmsg->syscall);
 			assert(SYS_open == rmsg->syscall);
 			// flag==1: open file in whitelist
 			if (!rmsg->flag) syscall_getpid(pid);
@@ -390,6 +391,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, (void*)&msg, 16);
+	PRINT("** master send message of sys_open\n");
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
