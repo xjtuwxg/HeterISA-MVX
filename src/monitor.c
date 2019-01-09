@@ -105,24 +105,20 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			syscall_getpid(pid);
 		}
 		break;
-#if __aarch64__
-	case SYS_openat:
-#endif
+//#if __aarch64__
+//	case SYS_openat:
+//#endif
 #if __x86_64__
 	case SYS_open:
-#endif
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-#if __aarch64__
-			assert(SYS_openat == rmsg->syscall);
-#endif
-#if __x86_64__
 			assert(SYS_open == rmsg->syscall);
-#endif
-			syscall_getpid(pid);
+			// flag==1: open file in whitelist
+			if (!rmsg->flag) syscall_getpid(pid);
 		}
 		break;
+#endif
 	case SYS_close:
 		//if (fd_vtab[master_retval] == syscall_retval);
 		break;
@@ -171,8 +167,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
-		assert((master_retval >= 0) && (master_retval < 128));
-		PRINT(">>> follower sys_open: syscall ret %ld, master ret %ld\n",
+		//assert((master_retval >= 0) && (master_retval < 128));
+		PRINT(">>> follower sys_open: syscall ret %lld, master ret %lld\n",
 		      syscall_retval, master_retval);
 		//assert((syscall_retval >= 0) && (syscall_retval < 128));
 		//assert(master_retval >= syscall_retval);
@@ -357,6 +353,33 @@ static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
 	assert(ret != -1);
 }
 
+static inline void master_syscall_return(int fd, long syscall,
+					 long long retval);
+
+static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
+					 long long retval)
+{
+	char prefix[8];
+	size_t wl_len = sizeof(dir_whitelist);
+	size_t i, size;
+	int ret = 0;
+
+	get_child_data(pid, prefix, args[0], 8);
+	for (i = 0; i < wl_len; i++) {
+		size = strlen(dir_whitelist[i]);
+		ret = strncmp(dir_whitelist[i], prefix, (size > 8) ? 8 : size);
+		PRINT("** master open: size %u, ret %d, wl_len %u, prefix %s\n",
+		      size, ret, wl_len, prefix);
+		// TODO: if not open config files, just return the false value;
+		// else return a flag to let followers open the local files.
+		msg.flag = !ret;	// ret==0: open file in white list.
+		msg.syscall = 2;	// SYS_open x86
+		msg.len = 0;
+		msg.retval = retval;
+		ret = write(fd, (void*)&msg, 16);
+	}
+}
+
 /* ===== Those master syscall handlers only care about the retval. ===== */
 /**
  * Inline funtion to handle ret only syscalls on master node.
@@ -384,6 +407,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 {
 	//long follower_syscall_num = 0;
 	switch (syscall_num) {
+	/** (1) The following syscalls will send both param and retval. **/
 	case SYS_read:	// Sync the input to slave variant.
 		master_sys_read(pid, fd, args, retval);
 		break;
@@ -396,20 +420,19 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_sendfile:
 		master_sys_sendfile(pid, fd, args, retval);
 		break;
-//	case SYS_openat:
-//		master_sys_openat_sel(pid, fd, args, retval);
-//		break;
-
-	/* The following syscalls only have to send the retval. */
+	/** (2) The following syscalls only have to send the retval. **/
+	case SYS_openat:
+		master_sys_openat_sel(pid, fd, args, retval);
+		break;
 	case SYS_writev:
 		if (args[0] != 5) break;
 	/* The following syscalls will create new fd. */
-	case SYS_openat:
+	//case SYS_openat:
 	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
-#if __x86_64__	// master is alway arm64, no need to add this line
+//#if __x86_64__	// master is alway arm64, no need to add this line
 //	case SYS_epoll_create:
-#endif
+//#endif
 	case SYS_epoll_create1:
 	/* This guy delete fd. */
 	case SYS_close:
