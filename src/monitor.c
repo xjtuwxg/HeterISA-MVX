@@ -120,7 +120,12 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		break;
 #endif
 	case SYS_close:
+		{
+			sem_wait(&ringbuf->sem);
+			rmsg = ringbuf_gettop(ringbuf);
+			PRINTF("SYS_close %d\n", rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);
+		}
 		break;
 	}
 }
