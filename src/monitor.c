@@ -360,17 +360,19 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 					 long long retval)
 {
 	char prefix[8];
-	size_t wl_len = sizeof(dir_whitelist);
+	size_t wl_len = sizeof(dir_whitelist)/sizeof(char*);
 	size_t i, size;
 	int ret = 0;
 
-	get_child_data(pid, prefix, args[0], 8);
+	get_child_data(pid, prefix, args[1], 8);
+	prefix[7] = 0;
 	for (i = 0; i < wl_len; i++) {
 		size = strlen(dir_whitelist[i]);
-		ret = strncmp(dir_whitelist[i], prefix, (size > 8) ? 8 : size);
-		PRINT("** master open: size %u, ret %d, wl_len %u, prefix %s\n",
+		// TODO: maybe buggy, if the file path read by child < 8 bytes
+		ret = strncmp(dir_whitelist[i], prefix, (size > 7) ? 7 : size);
+		PRINT("** master open: size %lu, ret %d, wl_len %lu, prefix %s\n",
 		      size, ret, wl_len, prefix);
-		// TODO: if not open config files, just return the false value;
+		// If not open config files, just return the false value;
 		// else return a flag to let followers open the local files.
 		msg.flag = !ret;	// ret==0: open file in white list.
 		msg.syscall = 2;	// SYS_open x86
