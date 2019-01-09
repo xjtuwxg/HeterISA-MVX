@@ -32,7 +32,7 @@ void post_syscall(long syscall, long result)
 {
     syscall_entry_t ent = syscalls[syscall];
 
-    PRINT(" = 0x%lx\n", result);
+    PRINT(" = 0x%lx (origin)\n", result);
 #if 0
     if (ent.name != 0) {
         /* Print system call result */
@@ -166,6 +166,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_open:
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
+		if (rmsg.flag) break;	// if load local file, continue
 		master_retval = rmsg.retval;
 		//assert((master_retval >= 0) && (master_retval < 128));
 		PRINT(">>> follower sys_open: syscall ret %lld, master ret %lld\n",
@@ -180,6 +181,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
+		PRINT("syscall %d (%d), retval %lld\n",
+		      rmsg.syscall, SYS_close, master_retval);
 
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%lld\n", master_retval);
