@@ -362,7 +362,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	char prefix[8];
 	size_t wl_len = sizeof(dir_whitelist)/sizeof(char*);
 	size_t i, size;
-	int ret = 0;
+	int ret = 0, in_list_flag = 0;
 
 	get_child_data(pid, prefix, args[1], 8);
 	prefix[7] = 0;
@@ -372,14 +372,16 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 		ret = strncmp(dir_whitelist[i], prefix, (size > 7) ? 7 : size);
 		PRINT("** master open: size %lu, ret %d, wl_len %lu, prefix %s\n",
 		      size, ret, wl_len, prefix);
-		// If not open config files, just return the false value;
-		// else return a flag to let followers open the local files.
-		msg.flag = !ret;	// ret==0: open file in white list.
-		msg.syscall = 2;	// SYS_open x86
-		msg.len = 0;
-		msg.retval = retval;
-		ret = write(fd, (void*)&msg, 16);
+		if (!ret) {
+			in_list_flag = 1;	// ret=0: found in white list.
+			break;
+		}
 	}
+	msg.flag = in_list_flag;	// flag=1: found file in the white list.
+	msg.syscall = 2;	// SYS_open x86
+	msg.len = 0;
+	msg.retval = retval;
+	ret = write(fd, (void*)&msg, 16);
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
