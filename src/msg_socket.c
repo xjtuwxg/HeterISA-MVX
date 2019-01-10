@@ -61,6 +61,8 @@ int ringbuf_pop(ringbuf_t rb, msg_t *msg)
 	rb->size--;
 
 	/* Remove the allocated memory */
+	MSG_PRINT("** after pop tail %lu (syscall %u), new tail %lu\n",
+	      rb->tail-1, del_msg->syscall, rb->tail);
 	free(del_msg);
 
 	return 0;
@@ -191,9 +193,9 @@ void process_data(int fd)
 	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx\n",
-		  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
-		  new_msg->flag, new_msg->retval);
+	//MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx\n",
+	//	  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
+	//	  new_msg->flag, new_msg->retval);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);

@@ -55,6 +55,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			// Wait for the non-empty ringbuf.
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
+			assert(SYS_read == rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param, and delete it in post syscall handler.
 			if (rmsg->retval >= 0) {
@@ -75,6 +76,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
+			assert(SYS_epoll_pwait == rmsg->syscall);
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg->buf, rmsg->len);
@@ -88,6 +90,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
+			assert(SYS_getsockopt == rmsg->syscall);
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
@@ -99,6 +102,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
+			assert(SYS_sendfile == rmsg->syscall);
 			update_child_data(pid, args[2], (char*)rmsg->buf,
 				rmsg->len);
 			PRINT("len %u\n", rmsg->len);
@@ -162,6 +166,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
 		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
+		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
