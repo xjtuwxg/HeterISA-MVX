@@ -184,7 +184,8 @@ void process_data(int fd)
 {
 	ssize_t cnt;
 	char buf[512];
-	msg_t *new_msg = malloc(sizeof(msg_t));	// not free in this func
+	// malloc in this func but not free here, delete in "ringbuf_pop"
+	msg_t *new_msg = malloc(sizeof(msg_t));
 
 	/* Read the msg_t from socket fd: read 16 bytes header first, then
 	 * read the message buffer of len */

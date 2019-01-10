@@ -54,7 +54,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		if (args[0] != 3) {
 			// Wait for the non-empty ringbuf.
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param, and delete it in post syscall handler.
 			if (rmsg->retval >= 0) {
@@ -74,7 +74,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			struct epoll_event events[16];
 
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg->buf, rmsg->len);
@@ -87,7 +87,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 	case SYS_getsockopt:
 		{
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
 			//    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
@@ -98,7 +98,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 	case SYS_sendfile:
 		{
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			update_child_data(pid, args[2], (char*)rmsg->buf,
 				rmsg->len);
 			PRINT("len %u\n", rmsg->len);
@@ -112,7 +112,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 	case SYS_open:
 		{
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
 			assert(SYS_open == rmsg->syscall);
 			// flag==1: open file in whitelist
@@ -123,7 +123,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 	case SYS_close:
 		{
 			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_gettop(ringbuf);
+			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
 			assert(SYS_close == rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);

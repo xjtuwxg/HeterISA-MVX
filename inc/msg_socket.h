@@ -97,6 +97,9 @@ static inline int isEmpty(ringbuf_t rb)
 	else return 0;
 }
 
+/**
+ * Get the latest incoming value of the ringbuf.
+ * */
 static inline msg_t* ringbuf_gettop(ringbuf_t rb)
 {
 	if (isEmpty(rb)) {
@@ -104,6 +107,17 @@ static inline msg_t* ringbuf_gettop(ringbuf_t rb)
 	}
 	if (rb->head == 0) return rb->msg[MAX_RINGBUF_SIZE-1];
 	else return rb->msg[rb->head-1];
+}
+
+/**
+ * Get the oldest value in the ringbuf.
+ * */
+static inline msg_t* ringbuf_getbottom(ringbuf_t rb)
+{
+	if (isEmpty(rb)) {
+		return 0;
+	}
+	return rb->msg[rb->tail];
 }
 
 #endif
