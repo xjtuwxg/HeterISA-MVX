@@ -7,7 +7,7 @@
 /**
  * The DEBUG mode print functions.
  * */
-#define _DEBUG
+//#define _DEBUG
 
 #ifdef _DEBUG
 #define FATAL(...) \
@@ -42,7 +42,7 @@
 #endif	// end _DEBUG
 
 
-#define _MSG_DEBUG
+//#define _MSG_DEBUG
 
 #ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \

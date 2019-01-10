@@ -456,7 +456,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 //#if __x86_64__	// master is alway arm64, no need to add this line
 //	case SYS_epoll_create:
 //#endif
-	case SYS_epoll_create1:
+	//case SYS_epoll_create1:
 	/* This guy delete fd. */
 	case SYS_close:
 	/* The following syscalls manipulate fd, and the return value affects
