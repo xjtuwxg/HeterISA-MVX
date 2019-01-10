@@ -42,7 +42,7 @@
 #endif	// end _DEBUG
 
 
-//#define _MSG_DEBUG
+#define _MSG_DEBUG
 
 #ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \
@@ -53,5 +53,12 @@
 #else	// ifdef _MSG_DEBUG
 #define MSG_PRINT(...)	do {} while(0)
 #endif	// end	_MSG_DEBUG
+
+#include "msg_socket.h"
+static void print_msg(msg_t msg)
+{
+	PRINT("** syscall [%d], flag %d, len %d, retval %ld.\n",
+	      msg.syscall, msg.flag, msg.len, msg.retval);
+}
 
 #endif	// _DEBUG_H

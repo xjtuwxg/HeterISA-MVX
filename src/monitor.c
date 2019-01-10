@@ -125,6 +125,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
+			assert(SYS_close == rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);
 		}
 		break;
@@ -391,7 +392,9 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, (void*)&msg, 16);
-	PRINT("** master send message of sys_open\n");
+	//PRINT("** master send message of sys_open\n");
+	print_msg(msg);
+	assert(ret != -1);
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
@@ -401,13 +404,14 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 static inline void master_syscall_return(int fd, long syscall, long long retval)
 {
 	int ret = 0;
-	PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
+	//PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
 	/* Prepare the msg_t and send. */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, &msg, 16);
-	PRINT("** %s: write %d bytes.\n", __func__, ret);
+	//PRINT("** %s: write %d bytes.\n", __func__, ret);
+	print_msg(msg);
 	assert(ret != -1);
 }
 
