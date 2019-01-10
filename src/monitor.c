@@ -113,7 +113,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 		{
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_gettop(ringbuf);
-			PRINT("syscall %u\n", rmsg->syscall);
+			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
 			assert(SYS_open == rmsg->syscall);
 			// flag==1: open file in whitelist
 			if (!rmsg->flag) syscall_getpid(pid);
