@@ -50,12 +50,16 @@ typedef struct _message_t {
 /**
  * head: index indicate the index of the next available msg slot for
  * the ring buffer message
+ * @msg:  the array of msg_t, as the buffer.
+ * @sem:  used for ringbuf empty or not notification.
+ * @lock: automic operation on ringbuf head/tail.
  * */
 struct ringbuf_t {
 	msg_t *msg[MAX_RINGBUF_SIZE];
 	size_t head, tail;
 	size_t size;
 	sem_t sem;
+	sem_t lock;
 };
 typedef struct ringbuf_t *ringbuf_t;
 
@@ -118,6 +122,13 @@ static inline msg_t* ringbuf_getbottom(ringbuf_t rb)
 		return 0;
 	}
 	return rb->msg[rb->tail];
+}
+
+#include "debug.h"
+static inline void print_msg(msg_t msg)
+{
+	PRINT("** syscall [%d], flag %d, len %d, retval %ld.\n",
+	      msg.syscall, msg.flag, msg.len, msg.retval);
 }
 
 #endif
