@@ -109,9 +109,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			syscall_getpid(pid);
 		}
 		break;
-//#if __aarch64__
-//	case SYS_openat:
-//#endif
 #if __x86_64__
 	case SYS_open:
 		{
@@ -178,7 +175,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_open:
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
-		if (rmsg.flag) break;	// if load local file, continue
+		if (rmsg.flag) { // if load local file, update vtab and continue
+			fd_vtab[vtab_index++] = syscall_retval;
+			VFD_PRINT("** vtab_index %d <--> open fd %d\n",
+				  vtab_index-1, syscall_retval);
+			break;
+		}
 		master_retval = rmsg.retval;
 		//assert((master_retval >= 0) && (master_retval < 128));
 		PRINT(">>> follower sys_open: syscall ret %lld, master ret %lld\n",
@@ -195,9 +197,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		master_retval = rmsg.retval;
 		PRINT("syscall %d (%d), retval %lld\n",
 		      rmsg.syscall, SYS_close, master_retval);
+		VFG_PRINT("SYS_close, retval %lld, master retval %lld\n",
+			  syscall_retval, master_retval);
 
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%lld\n", master_retval);
+		//if (fd_vtab[master])
 		break;
 
 	/* The following syscalls were handled before the params, and they
@@ -385,12 +390,14 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 		size = strlen(dir_whitelist[i]);
 		// TODO: maybe buggy, if the file path read by child < 8 bytes
 		ret = strncmp(dir_whitelist[i], prefix, (size > 7) ? 7 : size);
-		PRINT("** master open: size %lu, ret %d, wl_len %lu, prefix %s\n",
-		      size, ret, wl_len, prefix);
 		if (!ret) {
 			in_list_flag = 1;	// ret=0: found in white list.
+			PRINT("** Found in white list. prefix %s\n", prefix);
 			break;
 		}
+	}
+	if (!in_list_flag) {
+		PRINT("** Not found in whitelist\n");
 	}
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
