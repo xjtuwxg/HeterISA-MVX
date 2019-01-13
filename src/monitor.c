@@ -160,9 +160,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* The following syscalls are ONLY handled here for the retval. */
 	case SYS_accept:
 	case SYS_accept4:
-		if (syscall_num == SYS_accept4)
-			VFD_PRINT("accept4 index [%3d]. fd %lld/%lld\n",
-				  open_close_idx++, master_retval, syscall_retval);
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
@@ -174,6 +171,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
+		if (syscall_num == SYS_accept4)
+			VFD_PRINT("accept4 index [%3d]. fd %lld/%lld\n",
+				  open_close_idx++, master_retval, syscall_retval);
 		break;
 
 	/* Handle separately and fill the fd_vtab. The following syscalls were
