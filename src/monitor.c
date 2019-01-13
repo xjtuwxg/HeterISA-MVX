@@ -115,6 +115,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
+			//VFD_PRINT("open fd %lld\n", args[0]);
 			assert(SYS_open == rmsg->syscall);
 			// flag==1: open file in whitelist
 			if (!rmsg->flag) syscall_getpid(pid);
@@ -126,6 +127,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
+			VFD_PRINT("** close fd %lld\n", args[0]);
 			assert(SYS_close == rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);
 		}
@@ -166,6 +168,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		if (syscall_num == SYS_accept4)
+			VFD_PRINT("** new fd %lld. local fd %lld\n",
+				  master_retval, syscall_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
@@ -175,10 +180,11 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_open:
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
+		VFD_PRINT("open index [%3d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
 			fd_vtab[vtab_index++] = syscall_retval;
-			VFD_PRINT("** vtab_index %d <--> open fd %d\n",
-				  vtab_index-1, syscall_retval);
+			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %lld\n",
+				  rmsg.retval, vtab_index-1, syscall_retval);
 			break;
 		}
 		master_retval = rmsg.retval;
@@ -197,8 +203,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		master_retval = rmsg.retval;
 		PRINT("syscall %d (%d), retval %lld\n",
 		      rmsg.syscall, SYS_close, master_retval);
-		VFG_PRINT("SYS_close, retval %lld, master retval %lld\n",
-			  syscall_retval, master_retval);
+		VFD_PRINT("** SYS_close, retval %lld, master retval %lld. close fd %d\n",
+			  syscall_retval, master_retval, vtab_index-1);
+		if (vtab_index > 0) vtab_index--;
+		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%lld\n", master_retval);
@@ -399,6 +407,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	if (!in_list_flag) {
 		PRINT("** Not found in whitelist\n");
 	}
+	VFD_PRINT("open index [%3d]\n", open_close_idx++);
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
 	msg.len = 0;
@@ -454,6 +463,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_openat:
 		master_sys_openat_sel(pid, fd, args, retval);
 		break;
+	/* This guy delete fd. */
+		VFD_PRINT("close index [%3d]\n", open_close_idx++);
+	case SYS_close:
 	case SYS_writev:
 		if (args[0] != 5) break;
 	/* The following syscalls will create new fd. */
@@ -464,8 +476,6 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 //	case SYS_epoll_create:
 //#endif
 	//case SYS_epoll_create1:
-	/* This guy delete fd. */
-	case SYS_close:
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation

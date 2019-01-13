@@ -66,7 +66,8 @@ static const int syscall_tbl[512] = {
 
 /* Store the "real fd" with the "virtual fd" as the index. */
 static int fd_vtab[128];
-static int vtab_index = 3;
+static int vtab_index = 3; // point to next available fd.
+static int open_close_idx = 0;
 
 void pre_syscall(long syscall, long long args[]);
 void post_syscall(long syscall, long result);

@@ -7,7 +7,7 @@
 /**
  * The DEBUG mode print functions.
  * */
-#define _DEBUG
+//#define _DEBUG
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \
@@ -43,7 +43,7 @@
 /**
  * Debug mode print message for message layer.
  * */
-#define _MSG_DEBUG
+//#define _MSG_DEBUG
 #ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \
     do { \
@@ -53,7 +53,6 @@
 #else	// ifdef _MSG_DEBUG
 #define MSG_PRINT(...)	do {} while(0)
 #endif	// end	_MSG_DEBUG
-
 
 /**
  * Debug mode print message for virtual fd.
