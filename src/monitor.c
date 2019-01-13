@@ -127,7 +127,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
-			VFD_PRINT("** close fd %lld\n", args[0]);
+			VFD_PRINT("** close fd %lld, syscall %d\n",
+				  args[0], rmsg->syscall);
 			assert(SYS_close == rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);
 		}
@@ -464,8 +465,8 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		master_sys_openat_sel(pid, fd, args, retval);
 		break;
 	/* This guy delete fd. */
-		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 	case SYS_close:
+		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 	case SYS_writev:
 		if (args[0] != 5) break;
 	/* The following syscalls will create new fd. */
