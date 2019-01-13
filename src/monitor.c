@@ -160,6 +160,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* The following syscalls are ONLY handled here for the retval. */
 	case SYS_accept:
 	case SYS_accept4:
+		if (syscall_num == SYS_accept4)
+			VFD_PRINT("accept4 index [%3d]. fd %lld/%lld\n",
+				  open_close_idx++, master_retval, syscall_retval);
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
@@ -169,9 +172,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		if (syscall_num == SYS_accept4)
-			VFD_PRINT("** new fd %lld. local fd %lld\n",
-				  master_retval, syscall_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
@@ -226,6 +226,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%lld\n", master_retval);
 		break;
+	case SYS_epoll_create1:
+	case SYS_socket:
+		VFD_PRINT("socket/epoll_create1 index [%3d]\n", open_close_idx++);
 	}
 #endif
 }
@@ -408,7 +411,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	if (!in_list_flag) {
 		PRINT("** Not found in whitelist\n");
 	}
-	VFD_PRINT("open index [%3d]\n", open_close_idx++);
+	VFD_PRINT("open index [%3d]. fd %lld\n", open_close_idx++, retval);
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
 	msg.len = 0;
@@ -464,19 +467,23 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	case SYS_openat:
 		master_sys_openat_sel(pid, fd, args, retval);
 		break;
-	/* This guy delete fd. */
-	case SYS_close:
-		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 	case SYS_writev:
 		if (args[0] != 5) break;
+	/* This guy delete fd. */
+	case SYS_close:
+		if (syscall_num == SYS_close)
+			VFD_PRINT("close index [%3d]. fd %lld/%lld\n",
+				  open_close_idx++, args[0], retval);
 	/* The following syscalls will create new fd. */
 	//case SYS_openat:
 	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
+		if (syscall_num == SYS_accept4)
+			VFD_PRINT("accept4 index [%3d]. fd %lld\n",
+				  open_close_idx++, retval);
 //#if __x86_64__	// master is alway arm64, no need to add this line
 //	case SYS_epoll_create:
 //#endif
-	//case SYS_epoll_create1:
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation
@@ -485,6 +492,11 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		assert(syscall_tbl[syscall_num]);
 		master_syscall_return(fd, syscall_tbl[syscall_num], retval);
 		break;
+	case SYS_socket:
+	case SYS_epoll_create1:
+		VFD_PRINT("%s index [%3d]. fd %lld\n",
+			  syscall_num == SYS_socket?"socket":"epoll_create1",
+			  open_close_idx++, retval);
 	}
 
 }
