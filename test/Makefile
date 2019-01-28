@@ -10,3 +10,6 @@ epoll: epoll.c
 
 clean:
 	rm -f basic epoll
+
+lighttpd:
+	../mvx_monitor /opt/lighttpd/sbin/lighttpd -f lighttpd.conf -D
