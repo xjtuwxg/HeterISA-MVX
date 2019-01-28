@@ -56,7 +56,7 @@ static inline int syscall_getpid(pid_t pid)
 	return ret;
 }
 
-long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[]);
+long get_regs_args(pid_t pid, struct user_regs_struct *regs, int64_t args[]);
 long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
 
 int update_child_data(pid_t pid, long long dst, char *src, size_t len);

@@ -27,7 +27,7 @@ static inline int x86_get_sc_args(struct user_regs_struct regs,
  * See "man 2 syscall"
  * */
 static inline int arm64_get_sc_args(struct user_regs_struct regs,
-				    long long args[])
+				    int64_t args[])
 {
     args[0] = regs.regs[0];  args[1] = regs.regs[1];  args[2] = regs.regs[2];
     args[3] = regs.regs[3];  args[4] = regs.regs[4];  args[5] = regs.regs[5];
@@ -39,7 +39,7 @@ static inline int arm64_get_sc_args(struct user_regs_struct regs,
  * Get the current register value from user_regs_struct, parse the register
  * value into a 6 element syscall param array.
  * */
-long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[])
+long get_regs_args(pid_t pid, struct user_regs_struct *regs, int64_t args[])
 {
         long syscall_num;
 #ifdef __x86_64__

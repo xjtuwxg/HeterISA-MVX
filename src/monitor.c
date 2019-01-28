@@ -5,7 +5,7 @@
 
 static int count = 0;
 /* @param: syscall num & arguments */
-void pre_syscall(long syscall, long long args[])
+void pre_syscall(long syscall, int64_t args[])
 {
     syscall_entry_t ent = syscalls[syscall];
 
@@ -43,7 +43,7 @@ void post_syscall(long syscall, long result)
 
 /* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
  * MVX slave node */
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			       int *skip_post_handling)
 {
 	int val;
@@ -115,7 +115,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
-			//VFD_PRINT("open fd %lld\n", args[0]);
+			//VFD_PRINT("open fd %ld\n", args[0]);
 			assert(SYS_open == rmsg->syscall);
 			// flag==1: open file in whitelist
 			if (!rmsg->flag) syscall_getpid(pid);
@@ -127,7 +127,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
-			VFD_PRINT("** close fd %lld, syscall %d\n",
+			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
 			assert(SYS_close == rmsg->syscall);
 		//if (fd_vtab[master_retval] == syscall_retval);
@@ -139,20 +139,20 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
 
 static inline void follower_sys_open(pid_t pid, long syscall_num)
 {
-	long long master_retval;
+	//int64_t master_retval;
 	msg_t rmsg;
 
 	sem_wait(&ringbuf->sem);
 	ringbuf_pop(ringbuf, &rmsg);
-	master_retval = rmsg.retval;
+	//master_retval = rmsg.retval;
 
 }
 
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
-				long long syscall_retval)
+				int64_t syscall_retval)
 {
 	//int val;
-	long long master_retval;
+	int64_t master_retval;
 	msg_t rmsg;
 
 #if __x86_64__
@@ -169,10 +169,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %lld\n",
+		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		if (syscall_num == SYS_accept4)
-			VFD_PRINT("accept4 index [%3d]. fd %lld/%lld\n",
+			VFD_PRINT("accept4 index [%3d]. fd %ld/%ld\n",
 				  open_close_idx++, master_retval, syscall_retval);
 		break;
 
@@ -184,33 +184,33 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		VFD_PRINT("open index [%3d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
 			fd_vtab[vtab_index++] = syscall_retval;
-			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %lld\n",
+			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
 				  rmsg.retval, vtab_index-1, syscall_retval);
 			break;
 		}
 		master_retval = rmsg.retval;
 		//assert((master_retval >= 0) && (master_retval < 128));
-		PRINT(">>> follower sys_open: syscall ret %lld, master ret %lld\n",
+		PRINT(">>> follower sys_open: syscall ret %ld, master ret %ld\n",
 		      syscall_retval, master_retval);
 		//assert((syscall_retval >= 0) && (syscall_retval < 128));
 		//assert(master_retval >= syscall_retval);
 		// Stores the real retval(fd) with virtual one as index.
 		//fd_vtab[master_retval] = syscall_retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%lld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
-		PRINT("syscall %d (%d), retval %lld\n",
+		PRINT("syscall %d (%d), retval %ld\n",
 		      rmsg.syscall, SYS_close, master_retval);
-		VFD_PRINT("** SYS_close, retval %lld, master retval %lld. close fd %d\n",
+		VFD_PRINT("** SYS_close, retval %ld, master retval %ld. close fd %d\n",
 			  syscall_retval, master_retval, vtab_index-1);
 		if (vtab_index > 0) vtab_index--;
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%lld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		//if (fd_vtab[master])
 		break;
 
@@ -224,7 +224,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%lld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 	case SYS_epoll_create1:
 	case SYS_socket:
@@ -234,9 +234,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 }
 
 void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
-				      long long args[])
+				      int64_t args[])
 {
-	long long master_retval;
+	int64_t master_retval;
 	msg_t rmsg;
 	switch (syscall_num) {
 #if __x86_64__
@@ -246,7 +246,7 @@ void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%lld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 #endif
 	}
@@ -258,11 +258,11 @@ void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
  *    ssize_t read(int fd, void *buf, size_t count)
  *    "retval" is the actual length of the string writen to the buffer.
  * */
-static inline void master_sys_read(pid_t pid, int fd, long long args[],
-		      long long retval)
+static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
+		      int64_t retval)
 {
 	int child_fd = args[0];
-	long long child_buf = args[1];
+	int64_t child_buf = args[1];
 	size_t child_count = args[2];
 	char *monitor_buf = NULL;
 	int ret = 0;
@@ -300,8 +300,8 @@ static inline void master_sys_read(pid_t pid, int fd, long long args[],
  * Cares only about the 2nd parameter (args[1]).
  * The retval is the number of epoll_event
  * */
-static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
-		      long long retval)
+static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
+		      int64_t retval)
 {
 	struct epoll_event *events;	// 12 bytes on x86, 16 bytes on arm
 	struct epoll_event_x86 *x86_events;
@@ -340,14 +340,14 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, long long args[],
  *                     void *optval, socklen_t *optlen);
  * Only cares about the args[3],args[4] and retval.
  * */
-static inline void master_sys_getsockopt(pid_t pid, int fd, long long args[],
-					 long long retval)
+static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
+					 int64_t retval)
 {
 	int ret = 0;
 	char *optval;
 	unsigned int optlen = 0; //args[4];
 
-	PRINT("getsockopt: %lld, %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	PRINT("getsockopt: %ld, %ld, %ld, 0x%llx, 0x%llx | %ld\n",
 	      args[0], args[1], args[2], args[3], args[4], retval);
 	get_child_data(pid, (char*)&optlen, args[4], 4);
 	optval = malloc(optlen);
@@ -367,16 +367,16 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, long long args[],
  *   ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
  * Cares about the 'offset + retval'
  * */
-static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
-					 long long retval)
+static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
+					 int64_t retval)
 {
 	int ret = 0;
 	off_t offset = 0;
 	//size_t len = sizeof(offset);
-	PRINT("sendfile: %lld, %lld, 0x%llx, 0x%llx | %lld\n",
+	PRINT("sendfile: %ld, %ld, 0x%llx, 0x%llx | %ld\n",
 	      args[0], args[1], args[2], args[3], retval);
 	get_child_data(pid, (char*)&offset, args[2], sizeof(off_t));
-	PRINT("off 0x%lx, count %lld. %lu\n", offset, args[3], sizeof(off_t));
+	PRINT("off 0x%lx, count %ld. %lu\n", offset, args[3], sizeof(off_t));
 	msg.syscall = 40;	// SYS_sendfile x86
 	msg.len = sizeof(off_t);
 	msg.retval = retval;
@@ -386,10 +386,10 @@ static inline void master_sys_sendfile(pid_t pid, int fd, long long args[],
 }
 
 static inline void master_syscall_return(int fd, long syscall,
-					 long long retval);
+					 int64_t retval);
 
-static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
-					 long long retval)
+static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
+					 int64_t retval)
 {
 	char prefix[8];
 	size_t wl_len = sizeof(dir_whitelist)/sizeof(char*);
@@ -411,7 +411,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 	if (!in_list_flag) {
 		PRINT("** Not found in whitelist\n");
 	}
-	VFD_PRINT("open index [%3d]. fd %lld\n", open_close_idx++, retval);
+	VFD_PRINT("open index [%3d]. fd %ld\n", open_close_idx++, retval);
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
 	msg.len = 0;
@@ -426,7 +426,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, long long args[],
 /**
  * Inline funtion to handle ret only syscalls on master node.
  * */
-static inline void master_syscall_return(int fd, long syscall, long long retval)
+static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 {
 	int ret = 0;
 	//PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
@@ -445,8 +445,8 @@ static inline void master_syscall_return(int fd, long syscall, long long retval)
  * forward the result to slaves. Data will be sent with a msg_t data
  * structure (containing syscall num + message len + memory content buf)
  * */
-void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
-		      long long retval)
+void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
+		      int64_t retval)
 {
 	//long follower_syscall_num = 0;
 	switch (syscall_num) {
@@ -472,14 +472,14 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 	/* This guy delete fd. */
 	case SYS_close:
 		if (syscall_num == SYS_close)
-			VFD_PRINT("close index [%3d]. fd %lld/%lld\n",
+			VFD_PRINT("close index [%3d]. fd %ld/%ld\n",
 				  open_close_idx++, args[0], retval);
 	/* The following syscalls will create new fd. */
 	//case SYS_openat:
 	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
 		if (syscall_num == SYS_accept4)
-			VFD_PRINT("accept4 index [%3d]. fd %lld\n",
+			VFD_PRINT("accept4 index [%3d]. fd %ld\n",
 				  open_close_idx++, retval);
 //#if __x86_64__	// master is alway arm64, no need to add this line
 //	case SYS_epoll_create:
@@ -494,7 +494,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
 		break;
 	case SYS_socket:
 	case SYS_epoll_create1:
-		VFD_PRINT("%s index [%3d]. fd %lld\n",
+		VFD_PRINT("%s index [%3d]. fd %ld\n",
 			  syscall_num == SYS_socket?"socket":"epoll_create1",
 			  open_close_idx++, retval);
 	}

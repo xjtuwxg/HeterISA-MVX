@@ -69,20 +69,20 @@ static int fd_vtab[128];
 static int vtab_index = 3; // point to next available fd.
 static int open_close_idx = 0;
 
-void pre_syscall(long syscall, long long args[]);
+void pre_syscall(long syscall, int64_t args[]);
 void post_syscall(long syscall, long result);
 
 /* Follower syscall handling code. */
-void follower_wait_pre_syscall(pid_t pid, long syscall_num, long long args[],
+void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			       int *skip_post_handling);
 //void follower_wait_post_syscall(pid_t pid, long syscall_num);
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
-				long long syscall_retval);
+				int64_t syscall_retval);
 void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
-				      long long args[]);
+				      int64_t args[]);
 
 /* Master sync code. */
-void master_syncpoint(pid_t pid, int fd, long syscall_num, long long args[],
-		      long long retval);
+void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
+		      int64_t retval);
 
 #endif

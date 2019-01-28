@@ -67,7 +67,6 @@ int main(int argc, char **argv)
 		skip_post_handling = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
-		//if (WSTOPSIG(status) != 5) {
 		if (WSTOPSIG(status) != SIGTRAP) {
 			PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
 			      WSTOPSIG(status));
@@ -77,9 +76,9 @@ int main(int argc, char **argv)
 		/* (1) The following code handles syscall params, before tracee
 		 *     entering the kernel. */
 		struct user_regs_struct regs;
-		long long args[6];
-		long syscall_num;
-		long long syscall_retval;
+		int64_t args[6];
+		int64_t syscall_retval;
+		uint64_t syscall_num;
 
 		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
