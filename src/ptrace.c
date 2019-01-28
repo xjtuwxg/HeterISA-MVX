@@ -13,7 +13,7 @@
  * See "man 2 syscall"
  * */
 static inline int x86_get_sc_args(struct user_regs_struct regs,
-				  long long args[])
+				  int64_t args[])
 {
     args[0] = regs.rdi;  args[1] = regs.rsi;  args[2] = regs.rdx;
     args[3] = regs.r10;  args[4] = regs.r8;   args[5] = regs.r9;
