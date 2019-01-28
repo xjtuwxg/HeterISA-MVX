@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 		/* Get system call result, and print it */
 		syscall_retval = get_retval(pid, &regs, &terminate);
 		if (terminate) {
-			PRINT("syscall #%ld, ret %lld. terminate\n",
+			PRINT("syscall #%ld, ret %ld. terminate\n",
 			      syscall_num, syscall_retval);
 			break;
 		}

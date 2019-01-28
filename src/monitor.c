@@ -11,15 +11,15 @@ void pre_syscall(long syscall, int64_t args[])
 
     /* current, we want to print the syscall params */
     fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
-#if 1
+#if 0
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
 	PRINT("[%3ld] %s (", syscall, ent.name);
 	if (nargs != 0)
-	    RAW_PRINT("%s: 0x%llx", ent.sc_arg.arg[0], args[0]);
+	    RAW_PRINT("%s: 0x%lx", ent.sc_arg.arg[0], args[0]);
 	for (i = 1; i < nargs; i++) {
-	    RAW_PRINT(", %s: 0x%llx", ent.sc_arg.arg[i], args[i]);
+	    RAW_PRINT(", %s: 0x%lx", ent.sc_arg.arg[i], args[i]);
 	}
 	RAW_PRINT(")\n");
 	// if the syscall is read, we modify the input
@@ -77,7 +77,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			assert(SYS_epoll_pwait == rmsg->syscall);
-			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			//PRINT("pid %d, args[1] 0x%lx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
 			memcpy(events, rmsg->buf, rmsg->len);
 			update_child_data(pid, args[1], (char*)events,
@@ -91,7 +91,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			sem_wait(&ringbuf->sem);
 			rmsg = ringbuf_getbottom(ringbuf);
 			assert(SYS_getsockopt == rmsg->syscall);
-			//PRINT("pid %d, args[1] 0x%llx, buf: %s, len: %u, syscall %d\n",
+			//PRINT("pid %d, args[1] 0x%lx, buf: %s, len: %u, syscall %d\n",
 			//    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
 			update_child_data(pid, args[3], (char*)rmsg->buf,
 				rmsg->len);
@@ -347,7 +347,7 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	char *optval;
 	unsigned int optlen = 0; //args[4];
 
-	PRINT("getsockopt: %ld, %ld, %ld, 0x%llx, 0x%llx | %ld\n",
+	PRINT("getsockopt: %ld, %ld, %ld, 0x%lx, 0x%lx | %ld\n",
 	      args[0], args[1], args[2], args[3], args[4], retval);
 	get_child_data(pid, (char*)&optlen, args[4], 4);
 	optval = malloc(optlen);
@@ -373,7 +373,7 @@ static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
 	int ret = 0;
 	off_t offset = 0;
 	//size_t len = sizeof(offset);
-	PRINT("sendfile: %ld, %ld, 0x%llx, 0x%llx | %ld\n",
+	PRINT("sendfile: %ld, %ld, 0x%lx, 0x%lx | %ld\n",
 	      args[0], args[1], args[2], args[3], retval);
 	get_child_data(pid, (char*)&offset, args[2], sizeof(off_t));
 	PRINT("off 0x%lx, count %ld. %lu\n", offset, args[3], sizeof(off_t));
@@ -385,8 +385,7 @@ static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
 	assert(ret != -1);
 }
 
-static inline void master_syscall_return(int fd, long syscall,
-					 int64_t retval);
+static inline void master_syscall_return(int fd, long syscall, int64_t retval);
 
 static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 					 int64_t retval)
@@ -411,7 +410,8 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 	if (!in_list_flag) {
 		PRINT("** Not found in whitelist\n");
 	}
-	VFD_PRINT("open index [%3d]. fd %ld\n", open_close_idx++, retval);
+	VFD_PRINT("open index[%d]. fd %ld. prefix %s. in wl %d\n",
+		  open_close_idx++, retval, prefix, in_list_flag);
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
 	msg.len = 0;
@@ -429,7 +429,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 {
 	int ret = 0;
-	//PRINT("** master syscall [%3ld], retval: 0x%llx\n", syscall, retval);
+	//PRINT("** master syscall [%3ld], retval: 0x%lx\n", syscall, retval);
 	/* Prepare the msg_t and send. */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
@@ -472,14 +472,14 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	/* This guy delete fd. */
 	case SYS_close:
 		if (syscall_num == SYS_close)
-			VFD_PRINT("close index [%3d]. fd %ld/%ld\n",
+			VFD_PRINT("close index[%d]. fd %ld. ret %ld\n",
 				  open_close_idx++, args[0], retval);
 	/* The following syscalls will create new fd. */
 	//case SYS_openat:
 	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
 		if (syscall_num == SYS_accept4)
-			VFD_PRINT("accept4 index [%3d]. fd %ld\n",
+			VFD_PRINT("accept4 index[%d]. fd %ld\n",
 				  open_close_idx++, retval);
 //#if __x86_64__	// master is alway arm64, no need to add this line
 //	case SYS_epoll_create:
@@ -494,7 +494,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		break;
 	case SYS_socket:
 	case SYS_epoll_create1:
-		VFD_PRINT("%s index [%3d]. fd %ld\n",
+		VFD_PRINT("%s index[%d]. fd %ld\n",
 			  syscall_num == SYS_socket?"socket":"epoll_create1",
 			  open_close_idx++, retval);
 	}
