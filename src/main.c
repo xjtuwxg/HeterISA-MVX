@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 		syscall_num = get_regs_args(pid, &regs, args);
 		pre_syscall(syscall_num, args);
 #ifdef __x86_64__
-		/* Follower variant has to wait the master variant' input */
+		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
 #endif
@@ -105,17 +105,17 @@ int main(int argc, char **argv)
 
 		post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
-		/* Master gets the user input, and syncs the value to slave
-		 * variant. */
+		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
 #endif
 #ifdef __x86_64__
-		/* Follower wants to wait leader's syscall retval */
-		if (!skip_post_handling)
-			follower_wait_post_syscall(pid, syscall_num,
-						   syscall_retval);
-		follower_wait_post_syscall_sel(pid, syscall_num, args);
+		/* Follower wants to wait leader's "syscall retval" */
+		if (skip_post_handling) continue;
+		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
+					   args);
+
+		//follower_wait_post_syscall_sel(pid, syscall_num, args);
 		RAW_PRINT("\n");
 #endif
 	}

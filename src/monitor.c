@@ -32,7 +32,8 @@ void post_syscall(long syscall, long result)
 {
     syscall_entry_t ent = syscalls[syscall];
 
-    PRINT(" = 0x%lx (origin)\n", result);
+    //PRINT(" = 0x%lx (origin)\n", result);
+    fprintf(stderr, " = 0x%lx (local syscall exec)\n", result);
 #if 0
     if (ent.name != 0) {
         /* Print system call result */
@@ -117,7 +118,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
 			//VFD_PRINT("open fd %ld\n", args[0]);
 			assert(SYS_open == rmsg->syscall);
-			// flag==1: open file in whitelist
+			/* "flag=1": open file in whitelist */
 			if (!rmsg->flag) syscall_getpid(pid);
 		}
 		break;
@@ -145,13 +146,11 @@ static inline void follower_sys_open(pid_t pid, long syscall_num)
 	sem_wait(&ringbuf->sem);
 	ringbuf_pop(ringbuf, &rmsg);
 	//master_retval = rmsg.retval;
-
 }
 
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
-				int64_t syscall_retval)
+				int64_t syscall_retval, int64_t args[])
 {
-	//int val;
 	int64_t master_retval;
 	msg_t rmsg;
 
@@ -173,7 +172,25 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		if (syscall_num == SYS_accept4)
 			VFD_PRINT("accept4 index [%3d]. fd %ld/%ld\n",
-				  open_close_idx++, master_retval, syscall_retval);
+				open_close_idx++, master_retval,syscall_retval);
+		break;
+	// write to a local file should not take effect??
+	case SYS_writev:
+		if (args[0] != 5) break;
+		sem_wait(&ringbuf->sem);
+		ringbuf_pop(ringbuf, &rmsg);
+		master_retval = rmsg.retval;
+		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		PRINT("=%ld\n", master_retval);
+		break;
+
+	/* This two syscalls are only used to intercept fd operations. */
+	case SYS_epoll_create1:
+	case SYS_socket:
+		VFD_PRINT("socket/epoll_create1 index [%3d]\n",
+			  open_close_idx++);
+		if (syscall_retval >= 0)
+			fd_vtab[vtab_index++] = syscall_retval;
 		break;
 
 	/* Handle separately and fill the fd_vtab. The following syscalls were
@@ -181,7 +198,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_open:
 		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
-		VFD_PRINT("open index [%3d]\n", open_close_idx++);
+		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
 			fd_vtab[vtab_index++] = syscall_retval;
 			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
@@ -190,7 +207,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		}
 		master_retval = rmsg.retval;
 		//assert((master_retval >= 0) && (master_retval < 128));
-		PRINT(">>> follower sys_open: syscall ret %ld, master ret %ld\n",
+		PRINT(">> follower sys_open: syscall ret %ld, master ret %ld\n",
 		      syscall_retval, master_retval);
 		//assert((syscall_retval >= 0) && (syscall_retval < 128));
 		//assert(master_retval >= syscall_retval);
@@ -206,6 +223,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		      rmsg.syscall, SYS_close, master_retval);
 		VFD_PRINT("** SYS_close, retval %ld, master retval %ld. close fd %d\n",
 			  syscall_retval, master_retval, vtab_index-1);
+
 		if (vtab_index > 0) vtab_index--;
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 
@@ -226,13 +244,11 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		PRINT("=%ld\n", master_retval);
 		break;
-	case SYS_epoll_create1:
-	case SYS_socket:
-		VFD_PRINT("socket/epoll_create1 index [%3d]\n", open_close_idx++);
 	}
 #endif
 }
 
+#if 0
 void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
 				      int64_t args[])
 {
@@ -251,6 +267,7 @@ void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
 #endif
 	}
 }
+#endif
 
 /* ===== Those master syscall handlers only care about the params. ===== */
 /**
