@@ -42,8 +42,9 @@ void post_syscall(long syscall, long result)
 #endif
 }
 
-/* MVX: Sync the syscall (e.g., SYS_read) params for inputs.
- * MVX slave node */
+/**
+ * The pre syscall handler mainly handles the syscall params.
+ * */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			       int *skip_post_handling)
 {
@@ -131,7 +132,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
 			assert(SYS_close == rmsg->syscall);
-		//if (fd_vtab[master_retval] == syscall_retval);
 		}
 		break;
 	}
@@ -148,6 +148,10 @@ static inline void follower_sys_open(pid_t pid, long syscall_num)
 	//master_retval = rmsg.retval;
 }
 
+/**
+ * The post syscall handler in follower mainly handles the syscall retval.
+ * e.g., setup the retval of the simulated syscalls.
+ * */
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
 				int64_t syscall_retval, int64_t args[])
 {
@@ -170,9 +174,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
-		if (syscall_num == SYS_accept4)
-			VFD_PRINT("accept4 index [%3d]. fd %ld/%ld\n",
-				open_close_idx++, master_retval,syscall_retval);
+		if (syscall_num == SYS_accept4) {
+			VFD_PRINT("accept4 index [%3d]. fd %ld, local sc %ld\n",
+				open_close_idx++, master_retval, syscall_retval);
+			fd_vtab[vtab_index++] = master_retval;
+			VFD_PRINT("vtab idx %d\n", vtab_index-1);
+		}
 		break;
 	// write to a local file should not take effect??
 	case SYS_writev:

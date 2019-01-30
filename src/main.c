@@ -88,7 +88,6 @@ int main(int argc, char **argv)
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
 #endif
-
 		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
 			FATAL("PTRACE_SYSCALL error 2: %s.", strerror(errno));
@@ -102,21 +101,19 @@ int main(int argc, char **argv)
 			      syscall_num, syscall_retval);
 			break;
 		}
-
 		post_syscall(syscall_num, syscall_retval);
-#ifdef __aarch64__
-		/* Master syncs the "user input" value to follower. */
-		master_syncpoint(pid, clientfd, syscall_num, args,
-				 syscall_retval);
-#endif
 #ifdef __x86_64__
 		/* Follower wants to wait leader's "syscall retval" */
 		if (skip_post_handling) continue;
 		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
 					   args);
-
-		//follower_wait_post_syscall_sel(pid, syscall_num, args);
 		RAW_PRINT("\n");
+#endif
+
+#ifdef __aarch64__
+		/* Master syncs the "user input" value to follower. */
+		master_syncpoint(pid, clientfd, syscall_num, args,
+				 syscall_retval);
 #endif
 	}
 	PRINT("Finish main loop!\n");
