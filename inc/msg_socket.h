@@ -124,6 +124,15 @@ static inline msg_t* ringbuf_getbottom(ringbuf_t rb)
 	return rb->msg[rb->tail];
 }
 
+/**
+ * Wait for ringbuf semaphore, and return the bottom value of the msg queue.
+ * */
+static inline msg_t* ringbuf_wait(ringbuf_t rb)
+{
+	sem_wait(&rb->sem);
+	return ringbuf_getbottom(rb);
+}
+
 #include "debug.h"
 static inline void print_msg(msg_t msg)
 {

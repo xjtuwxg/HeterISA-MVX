@@ -33,7 +33,7 @@ void post_syscall(long syscall, long result)
     syscall_entry_t ent = syscalls[syscall];
 
     //PRINT(" = 0x%lx (origin)\n", result);
-    fprintf(stderr, " = 0x%lx (local syscall exec)\n", result);
+    fprintf(stderr, " = %ld (0x%lx) (local syscall exec)\n", result, result);
 #if 0
     if (ent.name != 0) {
         /* Print system call result */
@@ -55,8 +55,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	case SYS_read:	// Wait read buffer sent from master variant.
 		if (args[0] != 3) {
 			// Wait for the non-empty ringbuf.
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
+			rmsg = ringbuf_wait(ringbuf);
 			assert(SYS_read == rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param, and delete it in post syscall handler.
@@ -76,8 +75,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		{
 			struct epoll_event events[16];
 
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
+			rmsg = ringbuf_wait(ringbuf);
 			assert(SYS_epoll_pwait == rmsg->syscall);
 			//PRINT("pid %d, args[1] 0x%lx, buf: %s, len: %u, syscall %d\n",
 			//      pid, args[1], rmsg.buf, rmsg.len, rmsg.syscall);
@@ -90,8 +88,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		break;
 	case SYS_getsockopt:
 		{
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
+			rmsg = ringbuf_wait(ringbuf);
 			assert(SYS_getsockopt == rmsg->syscall);
 			//PRINT("pid %d, args[1] 0x%lx, buf: %s, len: %u, syscall %d\n",
 			//    pid, args[1], rmsg->buf, rmsg->len, rmsg->syscall);
@@ -102,8 +99,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		break;
 	case SYS_sendfile:
 		{
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
+			rmsg = ringbuf_wait(ringbuf);
 			assert(SYS_sendfile == rmsg->syscall);
 			update_child_data(pid, args[2], (char*)rmsg->buf,
 				rmsg->len);
@@ -114,9 +110,9 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 #if __x86_64__
 	case SYS_open:
 		{
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
-			PRINT("syscall %u. tail %lu\n", rmsg->syscall, ringbuf->tail);
+			rmsg = ringbuf_wait(ringbuf);
+			PRINT("syscall %u. tail %lu\n", rmsg->syscall,
+			      ringbuf->tail);
 			//VFD_PRINT("open fd %ld\n", args[0]);
 			assert(SYS_open == rmsg->syscall);
 			/* "flag=1": open file in whitelist */
@@ -126,12 +122,21 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 #endif
 	case SYS_close:
 		{
-			sem_wait(&ringbuf->sem);
-			rmsg = ringbuf_getbottom(ringbuf);
+			rmsg = ringbuf_wait(ringbuf);
 			PRINT("SYS_close %d\n", rmsg->syscall);
 			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
 			assert(SYS_close == rmsg->syscall);
+		}
+		break;
+	//case SYS_accept:
+	case SYS_accept4:
+		{
+			rmsg = ringbuf_wait(ringbuf);
+			PRINT("SYS_accept4 %d\n", rmsg->syscall);
+			VFD_PRINT("** accept4 fd %ld, syscall %d\n",
+				  args[0], rmsg->syscall);
+			assert(SYS_accept4 == rmsg->syscall);
 		}
 		break;
 	}
@@ -150,8 +155,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 #if __x86_64__
 	switch (syscall_num) {
 	/* (1) The following syscalls are ONLY handled here for the retval. */
-	case SYS_accept:
-	case SYS_accept4:
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
@@ -160,16 +163,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
-		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		update_retval(pid, master_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
-		if (syscall_num == SYS_accept4) {
-			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
-			    open_close_idx++, syscall_retval, master_retval);
-			fd_vtab[vtab_index++] = master_retval;
-			VFD_PRINT("vtab idx %d\n", vtab_index-1);
-		}
 		break;
 	// write to a local file should not take effect??
 	case SYS_writev:
@@ -178,7 +174,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
-		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
 		break;
@@ -204,7 +199,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			break;
 		}
 		master_retval = rmsg.retval;
-		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		update_retval(pid, master_retval);
 		VFD_PRINT("=%ld\n", master_retval);
 		break;
@@ -215,13 +209,14 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			  syscall_retval, master_retval, vtab_index-1);
 		if (vtab_index > 0) vtab_index--;
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
-		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		update_retval(pid, master_retval);
 		VFD_PRINT("=%ld\n", master_retval);
 		break;
 
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
+	//case SYS_accept:
+	case SYS_accept4:
 	case SYS_read:
 	case SYS_epoll_pwait:
 	case SYS_getsockopt:
@@ -229,9 +224,15 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
-		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
 		update_retval(pid, master_retval);
 		VFD_PRINT("=%ld\n", master_retval);
+
+		if (syscall_num == SYS_accept4) {
+			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
+			    open_close_idx++, syscall_retval, master_retval);
+			fd_vtab[vtab_index++] = master_retval;
+			VFD_PRINT("vtab idx %d\n", vtab_index-1);
+		}
 		break;
 	}
 #endif
@@ -464,7 +465,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	/* The following syscalls will create new fd.
 	 * "open, socket, accept4, epoll_create1" */
 	//case SYS_openat:
-	case SYS_accept:// ret a descriptor of acceted socket
+	//case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
 		if (syscall_num == SYS_accept4)
 			VFD_PRINT("accept4 index[%d]. fd %ld\n",
