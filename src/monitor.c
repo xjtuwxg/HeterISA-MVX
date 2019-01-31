@@ -137,17 +137,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	}
 }
 
-
-static inline void follower_sys_open(pid_t pid, long syscall_num)
-{
-	//int64_t master_retval;
-	msg_t rmsg;
-
-	sem_wait(&ringbuf->sem);
-	ringbuf_pop(ringbuf, &rmsg);
-	//master_retval = rmsg.retval;
-}
-
 /**
  * The post syscall handler in follower mainly handles the syscall retval.
  * e.g., setup the retval of the simulated syscalls.
@@ -160,7 +149,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 
 #if __x86_64__
 	switch (syscall_num) {
-	/* The following syscalls are ONLY handled here for the retval. */
+	/* (1) The following syscalls are ONLY handled here for the retval. */
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_fcntl:
@@ -171,12 +160,13 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		update_retval(pid, master_retval);
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		if (syscall_num == SYS_accept4) {
-			VFD_PRINT("accept4 index [%3d]. fd %ld, local sc %ld\n",
-				open_close_idx++, master_retval, syscall_retval);
+			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
+			    open_close_idx++, syscall_retval, master_retval);
 			fd_vtab[vtab_index++] = master_retval;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
 		}
@@ -186,8 +176,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		if (args[0] != 5) break;
 		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
+		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
 		break;
 
@@ -200,10 +192,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			fd_vtab[vtab_index++] = syscall_retval;
 		break;
 
-	/* Handle separately and fill the fd_vtab. The following syscalls were
+	/* (2) Handle separately and fill the fd_vtab. The following syscalls were
 	 * handled before. */
 	case SYS_open:
-		//follower_sys_open(pid, syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
@@ -213,33 +204,23 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			break;
 		}
 		master_retval = rmsg.retval;
-		//assert((master_retval >= 0) && (master_retval < 128));
-		PRINT(">> follower sys_open: syscall ret %ld, master ret %ld\n",
-		      syscall_retval, master_retval);
-		//assert((syscall_retval >= 0) && (syscall_retval < 128));
-		//assert(master_retval >= syscall_retval);
-		// Stores the real retval(fd) with virtual one as index.
-		//fd_vtab[master_retval] = syscall_retval;
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%ld\n", master_retval);
+		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		update_retval(pid, master_retval);
+		VFD_PRINT("=%ld\n", master_retval);
 		break;
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
-		PRINT("syscall %d (%d), retval %ld\n",
-		      rmsg.syscall, SYS_close, master_retval);
 		VFD_PRINT("** SYS_close, retval %ld, master retval %ld. close fd %d\n",
 			  syscall_retval, master_retval, vtab_index-1);
-
 		if (vtab_index > 0) vtab_index--;
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
-
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%ld\n", master_retval);
-		//if (fd_vtab[master])
+		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		update_retval(pid, master_retval);
+		VFD_PRINT("=%ld\n", master_retval);
 		break;
 
-	/* The following syscalls were handled before the params, and they
+	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
 	case SYS_epoll_pwait:
@@ -248,33 +229,14 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%ld\n", master_retval);
+		//ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
+		update_retval(pid, master_retval);
+		VFD_PRINT("=%ld\n", master_retval);
 		break;
 	}
 #endif
 }
 
-#if 0
-void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,
-				      int64_t args[])
-{
-	int64_t master_retval;
-	msg_t rmsg;
-	switch (syscall_num) {
-#if __x86_64__
-	case SYS_writev:
-		if (args[0] != 5) break;
-		sem_wait(&ringbuf->sem);
-		ringbuf_pop(ringbuf, &rmsg);
-		master_retval = rmsg.retval;
-		ptrace(PTRACE_POKEUSER, pid, 8*RAX, master_retval);
-		PRINT("=%ld\n", master_retval);
-		break;
-#endif
-	}
-}
-#endif
 
 /* ===== Those master syscall handlers only care about the params. ===== */
 /**
@@ -487,6 +449,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	case SYS_sendfile:
 		master_sys_sendfile(pid, fd, args, retval);
 		break;
+
 	/** (2) The following syscalls only have to send the retval. **/
 	case SYS_openat:
 		master_sys_openat_sel(pid, fd, args, retval);
@@ -498,16 +461,14 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		if (syscall_num == SYS_close)
 			VFD_PRINT("close index[%d]. fd %ld. ret %ld\n",
 				  open_close_idx++, args[0], retval);
-	/* The following syscalls will create new fd. */
+	/* The following syscalls will create new fd.
+	 * "open, socket, accept4, epoll_create1" */
 	//case SYS_openat:
 	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
 		if (syscall_num == SYS_accept4)
 			VFD_PRINT("accept4 index[%d]. fd %ld\n",
 				  open_close_idx++, retval);
-//#if __x86_64__	// master is alway arm64, no need to add this line
-//	case SYS_epoll_create:
-//#endif
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation

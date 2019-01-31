@@ -56,6 +56,19 @@ static inline int syscall_getpid(pid_t pid)
 	return ret;
 }
 
+/**
+ * Update the syscall return value with retval.
+ * */
+static inline int update_retval(pid_t pid, int64_t retval)
+{
+	int ret = 0;
+#ifdef __x86_64__
+	ret = ptrace(PTRACE_POKEUSER, pid, 8*RAX, retval);
+#endif
+	return ret;
+}
+
+
 long get_regs_args(pid_t pid, struct user_regs_struct *regs, int64_t args[]);
 long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
 
