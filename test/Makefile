@@ -13,3 +13,6 @@ clean:
 
 lighttpd:
 	../mvx_monitor /opt/lighttpd/sbin/lighttpd -f lighttpd.conf -D
+
+curl:
+	./curl.sh
