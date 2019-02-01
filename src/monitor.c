@@ -52,7 +52,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	msg_t *rmsg = NULL;
 
 	switch (syscall_num) {
-	case SYS_read:	// Wait read buffer sent from master variant.
+/*	case SYS_read:	// Wait read buffer sent from master variant.
 		if (args[0] != 3) {
 			// Wait for the non-empty ringbuf.
 			rmsg = ringbuf_wait(ringbuf);
@@ -69,7 +69,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		} else {
 			*skip_post_handling = 1;
 		}
-		break;
+		break;*/
 	case SYS_epoll_pwait:
 #if __x86_64__
 		{
@@ -136,18 +136,36 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("SYS_accept4 %d\n", rmsg->syscall);
 			VFD_PRINT("** accept4 fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
-			syscall_dup(pid);
 			assert(SYS_accept4 == rmsg->syscall);
+			syscall_dup(pid);
 		}
 		break;
 	case SYS_writev:
+	case SYS_read:
 		{
 			rmsg = ringbuf_wait(ringbuf);
-			VFD_PRINT("** write fd %ld, syscall %d\n",
-				  args[0], rmsg->syscall);
-			if (!isRealDesc(args[0])) syscall_getpid(pid);
+			VFD_PRINT("** %s fd %ld, syscall %d. real %d\n",
+				  syscall_num==SYS_read?"read":"write",
+				  args[0], rmsg->syscall, isRealDesc(args[0]));
+			assert(SYS_writev == rmsg->syscall);
+			if (!isRealDesc(args[0])) {
+				syscall_getpid(pid);
+				VFD_PRINT("A virtual fd\n");
+			}
 		}
 		break;
+/*	case SYS_read:
+		{
+			rmsg = ringbuf_wait(ringbuf);
+			VFD_PRINT("** read fd %ld, syscall %d. real %d\n",
+				  args[0], rmsg->syscall, isRealDesc(args[0]));
+			assert(SYS_read == rmsg->syscall);
+			if (!isRealDesc(args[0])) {
+				syscall_getpid(pid);
+				VFD_PRINT("Read a virtual fd\n");
+			}
+		}
+		break;*/
 	}
 }
 
@@ -193,7 +211,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		VFD_PRINT("socket/epoll_create1 index [%3d]\n",
 			  open_close_idx++);
 		if (syscall_retval >= 0)
-			fd_vtab[vtab_index++].id = syscall_retval;
+			fd_vtab[vtab_index].id = syscall_retval;
 			fd_vtab[vtab_index++].real = 0;
 		break;
 
@@ -203,7 +221,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
-			fd_vtab[vtab_index++].id = syscall_retval;
+			fd_vtab[vtab_index].id = syscall_retval;
 			fd_vtab[vtab_index++].real = 1;
 			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
 				  rmsg.retval, vtab_index-1, syscall_retval);
@@ -242,7 +260,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		if (syscall_num == SYS_accept4) {
 			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
 			    open_close_idx++, syscall_retval, master_retval);
-			fd_vtab[vtab_index++].id = master_retval;
+			fd_vtab[vtab_index].id = master_retval;
 			fd_vtab[vtab_index++].real = 0;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
 		}
@@ -272,7 +290,9 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 	assert(child_count > 0);
 	monitor_buf = malloc(child_count+8);
 
-	if (child_fd != 3) {	// TODO: Selectively fd handling rules.
+//	if (child_fd != 3) {	// TODO: Selectively fd handling rules.
+	// Send all file read, including local file read.
+	{
 		// We first want to retrieve child memory with params.
 		get_child_data(pid, monitor_buf, child_buf, child_count);
 		// We then want to send syscall info to Followers.
