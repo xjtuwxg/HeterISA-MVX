@@ -190,7 +190,8 @@ static int accept_connection(int listenfd, int epollfd)
 void process_data(int fd)
 {
 	ssize_t cnt;
-	char buf[512];
+	//char buf[512];
+	char buf[1024];	// limit the message size to 1024 bytes.
 	// malloc in this func but not free here, delete in "ringbuf_pop"
 	msg_t *new_msg = malloc(sizeof(msg_t));
 
@@ -198,9 +199,9 @@ void process_data(int fd)
 	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	//MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx\n",
-	//	  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
-	//	  new_msg->flag, new_msg->retval);
+	MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx. cnt %lu\n",
+		  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
+		  new_msg->flag, new_msg->retval, cnt);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);

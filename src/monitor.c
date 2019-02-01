@@ -143,6 +143,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	case SYS_writev:
 	case SYS_read:
 		{
+			VFD_PRINT("r/w fd %ld. real %d\n", args[0],
+				  isRealDesc(args[0]));
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("** %s fd %ld, syscall %d. real %d\n",
 				  syscall_num==SYS_read?"read":"write",
@@ -302,6 +304,7 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval+16);
+			MSG_PRINT("ret %d, retval %ld\n", ret, retval);
 		} else {		// read unsuccessful, ret negative
 			msg.len = 0;
 			msg.retval = retval;
