@@ -11,7 +11,7 @@ void pre_syscall(long syscall, int64_t args[])
 
     /* current, we want to print the syscall params */
     fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
-#if 0
+#if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
@@ -136,6 +136,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("SYS_accept4 %d\n", rmsg->syscall);
 			VFD_PRINT("** accept4 fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
+			syscall_dup(pid);
 			assert(SYS_accept4 == rmsg->syscall);
 		}
 		break;

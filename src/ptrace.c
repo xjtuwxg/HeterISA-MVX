@@ -1,6 +1,5 @@
 #include "ptrace.h"
 #include "debug.h"
-//#include <linux/ptrace.h>
 
 /**
  * Get syscall arguments from user_regs_struct

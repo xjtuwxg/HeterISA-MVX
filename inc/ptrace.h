@@ -57,6 +57,19 @@ static inline int syscall_getpid(pid_t pid)
 }
 
 /**
+ * Replace the x86 syscall with a SYS_dup.
+ * (Increase the descriptor table index, to replace accept4, etc.)
+ * */
+static inline int syscall_dup(pid_t pid)
+{
+	int ret = 0;
+#ifdef __x86_64__
+	ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_dup);
+#endif
+	return ret;
+}
+
+/**
  * Update the syscall return value with retval.
  * */
 static inline int update_retval(pid_t pid, int64_t retval)

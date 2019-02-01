@@ -107,7 +107,6 @@ int main(int argc, char **argv)
 		if (skip_post_handling) continue;
 		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
 					   args);
-		RAW_PRINT("\n");
 #endif
 
 #ifdef __aarch64__
@@ -115,6 +114,8 @@ int main(int argc, char **argv)
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
 #endif
+
+		RAW_PRINT("\n");
 	}
 	PRINT("Finish main loop!\n");
 }

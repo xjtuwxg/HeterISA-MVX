@@ -7,7 +7,7 @@
 /**
  * The DEBUG mode print functions.
  * */
-//#define _DEBUG
+#define _DEBUG
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \
