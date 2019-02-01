@@ -64,10 +64,24 @@ static const int syscall_tbl[512] = {
 #include "syscall_tbl.h"
 };
 
+typedef struct _vdt_entry {
+	int id;
+	int real;
+} vdt_entry_t;
+
+#define VDT_SIZE 128
+
 /* Store the "real fd" with the "virtual fd" as the index. */
-static int fd_vtab[128];
+static vdt_entry_t fd_vtab[VDT_SIZE];
 static int vtab_index = 3; // point to next available fd.
 static int open_close_idx = 0;
+
+static inline int isRealDesc(int id)
+{
+	assert(id >= 0);
+	assert(id < VDT_SIZE);
+	return fd_vtab[id].real;
+}
 
 void pre_syscall(long syscall, int64_t args[]);
 void post_syscall(long syscall, long result);

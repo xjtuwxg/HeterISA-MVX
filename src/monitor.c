@@ -140,6 +140,14 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			assert(SYS_accept4 == rmsg->syscall);
 		}
 		break;
+	case SYS_writev:
+		{
+			rmsg = ringbuf_wait(ringbuf);
+			VFD_PRINT("** write fd %ld, syscall %d\n",
+				  args[0], rmsg->syscall);
+			if (!isRealDesc(args[0])) syscall_getpid(pid);
+		}
+		break;
 	}
 }
 
@@ -169,14 +177,14 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
 	// write to a local file should not take effect??
-	case SYS_writev:
-		if (args[0] != 5) break;
-		sem_wait(&ringbuf->sem);
+//	case SYS_writev:
+//		if (args[0] != 5) break;
+/*		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
-		PRINT("=%ld\n", master_retval);
+		PRINT("=%ld\n", master_retval);*/
 		break;
 
 	/* This two syscalls are only used to intercept fd operations. */
@@ -185,7 +193,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		VFD_PRINT("socket/epoll_create1 index [%3d]\n",
 			  open_close_idx++);
 		if (syscall_retval >= 0)
-			fd_vtab[vtab_index++] = syscall_retval;
+			fd_vtab[vtab_index++].id = syscall_retval;
+			fd_vtab[vtab_index++].real = 0;
 		break;
 
 	/* (2) Handle separately and fill the fd_vtab. The following syscalls were
@@ -194,7 +203,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
-			fd_vtab[vtab_index++] = syscall_retval;
+			fd_vtab[vtab_index++].id = syscall_retval;
+			fd_vtab[vtab_index++].real = 1;
 			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
 				  rmsg.retval, vtab_index-1, syscall_retval);
 			break;
@@ -217,6 +227,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	//case SYS_accept:
+	case SYS_writev:
 	case SYS_accept4:
 	case SYS_read:
 	case SYS_epoll_pwait:
@@ -231,7 +242,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		if (syscall_num == SYS_accept4) {
 			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
 			    open_close_idx++, syscall_retval, master_retval);
-			fd_vtab[vtab_index++] = master_retval;
+			fd_vtab[vtab_index++].id = master_retval;
+			fd_vtab[vtab_index++].real = 0;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
 		}
 		break;
@@ -456,8 +468,6 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	case SYS_openat:
 		master_sys_openat_sel(pid, fd, args, retval);
 		break;
-	case SYS_writev:
-		if (args[0] != 5) break;
 	/* This guy delete fd. */
 	case SYS_close:
 		if (syscall_num == SYS_close)
@@ -465,7 +475,6 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 				  open_close_idx++, args[0], retval);
 	/* The following syscalls will create new fd.
 	 * "open, socket, accept4, epoll_create1" */
-	//case SYS_openat:
 	//case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
 		if (syscall_num == SYS_accept4)
@@ -473,6 +482,8 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 				  open_close_idx++, retval);
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
+	case SYS_writev:
+//		if (args[0] != 5) break;
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
