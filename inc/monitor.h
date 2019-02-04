@@ -72,7 +72,7 @@ typedef struct _vdt_entry {
 #define VDT_SIZE 128
 
 /* Store the "real fd" with the "virtual fd" as the index. */
-static vdt_entry_t fd_vtab[VDT_SIZE];
+vdt_entry_t fd_vtab[VDT_SIZE];
 static int vtab_index = 3; // point to next available fd.
 static int open_close_idx = 0;
 

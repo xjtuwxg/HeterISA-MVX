@@ -145,11 +145,15 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		{
 			//VFD_PRINT("r/w fd %ld. real %d\n", args[0],
 			//	  isRealDesc(args[0]));
+			PRINT("1) vdt 1 real %d, vdt 2 real %d. 0x%p\n",
+			      fd_vtab[1].real, fd_vtab[2].real, fd_vtab);
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("**%s fd %ld, syscall %d. real %d. flag %d\n",
 				  syscall_num==SYS_read?"read":"write",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
+			PRINT("vdt 1 real %d, vdt 2 real %d. 0x%p\n",
+			      fd_vtab[1].real, fd_vtab[2].real, fd_vtab);
 			assert(SYS_writev == rmsg->syscall);
 			//assert((SYS_writev == rmsg->syscall)
 			//       || (SYS_read == rmsg->syscall));

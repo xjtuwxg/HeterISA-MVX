@@ -51,6 +51,8 @@ int main(int argc, char **argv)
 	}
 
 	initVDT();
+	PRINT("vdt 1 real %d, vdt 2 real %d\n", fd_vtab[1].real,
+	      fd_vtab[2].real);
 
 	/* parent, also the monitor (tracer) */
 	/* Initiate the message thread (both server and client). */
@@ -85,6 +87,8 @@ int main(int argc, char **argv)
 		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
 		pre_syscall(syscall_num, args);
+		PRINT("0) vdt 1 real %d, vdt 2 real %d. 0x%p\n",
+		      fd_vtab[1].real, fd_vtab[2].real, fd_vtab);
 #ifdef __x86_64__
 		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
