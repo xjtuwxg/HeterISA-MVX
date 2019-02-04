@@ -277,6 +277,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 }
 
 
+
+
 /* ===== Those master syscall handlers only care about the params. ===== */
 /**
  * Inline funtion to handle SYS_read on master node.
@@ -426,8 +428,11 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 	size_t i, size;
 	int ret = 0, in_list_flag = 0;
 
+	// get the file name & location to prefix[8]
 	get_child_data(pid, prefix, args[1], 8);
 	prefix[7] = 0;
+
+	// check the file name against white list
 	for (i = 0; i < wl_len; i++) {
 		size = strlen(dir_whitelist[i]);
 		// TODO: maybe buggy, if the file path read by child < 8 bytes
@@ -439,6 +444,7 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 	}
 	VFD_PRINT("open index[%d]. fd %ld. prefix %s. in wl %d\n",
 		  open_close_idx++, retval, prefix, in_list_flag);
+
 	// update master VDT
 	if (retval >= 0) {
 		fd_vtab[retval].id = retval;
@@ -541,7 +547,10 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_writev:
-//		if (args[0] != 5) break;
+		if (syscall_num == SYS_writev) {
+			if (isRealDesc(args[0]))
+				msg.flag = 1;
+		}
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:

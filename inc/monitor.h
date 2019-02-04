@@ -76,6 +76,13 @@ static vdt_entry_t fd_vtab[VDT_SIZE];
 static int vtab_index = 3; // point to next available fd.
 static int open_close_idx = 0;
 
+static inline void initVDT()
+{
+	memset(fd_vtab, 0, sizeof(vdt_entry_t)*VDT_SIZE);
+	fd_vtab[1].real = 1;
+	fd_vtab[2].real = 1;
+}
+
 static inline int isRealDesc(int id)
 {
 	assert(id >= 0);

@@ -50,6 +50,8 @@ int main(int argc, char **argv)
 		FATAL("%s. child", strerror(errno));
 	}
 
+	initVDT();
+
 	/* parent, also the monitor (tracer) */
 	/* Initiate the message thread (both server and client). */
 	msg_thread_init();
