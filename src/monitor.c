@@ -145,15 +145,11 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		{
 			//VFD_PRINT("r/w fd %ld. real %d\n", args[0],
 			//	  isRealDesc(args[0]));
-			PRINT("1) vdt 1 real %d, vdt 2 real %d. 0x%p\n",
-			      fd_vtab[1].real, fd_vtab[2].real, fd_vtab);
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("**%s fd %ld, syscall %d. real %d. flag %d\n",
 				  syscall_num==SYS_read?"read":"write",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
-			PRINT("vdt 1 real %d, vdt 2 real %d. 0x%p\n",
-			      fd_vtab[1].real, fd_vtab[2].real, fd_vtab);
 			assert(SYS_writev == rmsg->syscall);
 			//assert((SYS_writev == rmsg->syscall)
 			//       || (SYS_read == rmsg->syscall));
@@ -170,11 +166,16 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
 			assert(SYS_read == rmsg->syscall);
-			if (!rmsg->flag) syscall_getpid(pid);
-			//if (!isRealDesc(args[0])) {
-			//	syscall_getpid(pid);
-			//	VFD_PRINT("Read a virtual fd\n");
-			//}
+			// If it's a normal read syscall, use the top msg_t to
+			// update the param;  in post syscall handler.
+			if (rmsg->flag) {
+				if (rmsg->retval >= 0) {
+					update_child_data(pid, args[1],
+							  rmsg->buf, rmsg->len);
+				}
+				syscall_getpid(pid);
+				PRINT("simulate SYS_read with getpid\n");
+			}
 		}
 		break;
 	}
@@ -570,8 +571,8 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	case SYS_writev:
 		if (syscall_num == SYS_writev) {
 			PRINT("%ld isreal %d\n", args[0], isRealDesc(args[0]));
-			if (isRealDesc(args[0]))
-				msg.flag = 1;
+			if (isRealDesc(args[0])) msg.flag = 1;
+			else msg.flag = 0;
 		}
 	case SYS_fcntl:	// manipulate fd, ret depends on the operation
 	case SYS_epoll_ctl:
