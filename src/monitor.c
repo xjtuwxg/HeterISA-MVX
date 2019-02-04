@@ -146,9 +146,10 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			//VFD_PRINT("r/w fd %ld. real %d\n", args[0],
 			//	  isRealDesc(args[0]));
 			rmsg = ringbuf_wait(ringbuf);
-			VFD_PRINT("** %s fd %ld, syscall %d. real %d\n",
+			VFD_PRINT("**%s fd %ld, syscall %d. real %d. flag %d\n",
 				  syscall_num==SYS_read?"read":"write",
-				  args[0], rmsg->syscall, isRealDesc(args[0]));
+				  args[0], rmsg->syscall, isRealDesc(args[0]),
+				  rmsg->flag);
 			assert(SYS_writev == rmsg->syscall);
 			//assert((SYS_writev == rmsg->syscall)
 			//       || (SYS_read == rmsg->syscall));
@@ -498,10 +499,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	//long follower_syscall_num = 0;
 	switch (syscall_num) {
 	/** (1) The following syscalls will send both param and retval. **/
-	case SYS_read:	// Sync the input to slave variant.
-		master_sys_read(pid, fd, args, retval);
-		break;
-	case SYS_epoll_pwait:
+	case SYS_epoll_pwait:	// Sync the input to follower variant.
 		master_sys_epoll_pwait(pid, fd, args, retval);
 		break;
 	case SYS_getsockopt:
@@ -510,6 +508,25 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	case SYS_sendfile:
 		master_sys_sendfile(pid, fd, args, retval);
 		break;
+
+	case SYS_read:
+		master_sys_read(pid, fd, args, retval);
+		break;
+
+	/* The following two only affect VDT size, no need to send message to
+	 * followers. */
+	case SYS_socket:
+	case SYS_epoll_create1:
+		VFD_PRINT("%s index[%d]. fd %ld\n",
+			  syscall_num == SYS_socket?"socket":"epoll_create1",
+			  open_close_idx++, retval);
+		if (retval >= 0) {
+			fd_vtab[retval].id = retval;
+			fd_vtab[retval].real = 0;
+			VFD_PRINT("vtab_index %d, id %ld, real %d\n",
+				  vtab_index, retval, fd_vtab[retval].real);
+			vtab_index++;
+		}
 
 	/** (2) The following syscalls only have to send the retval. **/
 	case SYS_openat:
@@ -557,18 +574,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		assert(syscall_tbl[syscall_num]);
 		master_syscall_return(fd, syscall_tbl[syscall_num], retval);
 		break;
-	case SYS_socket:
-	case SYS_epoll_create1:
-		VFD_PRINT("%s index[%d]. fd %ld\n",
-			  syscall_num == SYS_socket?"socket":"epoll_create1",
-			  open_close_idx++, retval);
-		if (retval >= 0) {
-			fd_vtab[retval].id = retval;
-			fd_vtab[retval].real = 0;
-			VFD_PRINT("vtab_index %d, id %ld, real %d\n",
-				  vtab_index, retval, fd_vtab[retval].real);
-			vtab_index++;
-		}
+
 	}
 
 }
