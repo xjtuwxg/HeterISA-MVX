@@ -565,6 +565,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	 * code after that. */
 	case SYS_writev:
 		if (syscall_num == SYS_writev) {
+			PRINT("%ld isreal %d\n", args[0], isRealDesc(args[0]));
 			if (isRealDesc(args[0]))
 				msg.flag = 1;
 		}
