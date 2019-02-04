@@ -141,33 +141,37 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		}
 		break;
 	case SYS_writev:
-	case SYS_read:
+//	case SYS_read:
 		{
-			VFD_PRINT("r/w fd %ld. real %d\n", args[0],
-				  isRealDesc(args[0]));
+			//VFD_PRINT("r/w fd %ld. real %d\n", args[0],
+			//	  isRealDesc(args[0]));
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("** %s fd %ld, syscall %d. real %d\n",
 				  syscall_num==SYS_read?"read":"write",
 				  args[0], rmsg->syscall, isRealDesc(args[0]));
 			assert(SYS_writev == rmsg->syscall);
+			//assert((SYS_writev == rmsg->syscall)
+			//       || (SYS_read == rmsg->syscall));
 			if (!isRealDesc(args[0])) {
 				syscall_getpid(pid);
 				VFD_PRINT("A virtual fd\n");
 			}
 		}
 		break;
-/*	case SYS_read:
+	case SYS_read:
 		{
 			rmsg = ringbuf_wait(ringbuf);
-			VFD_PRINT("** read fd %ld, syscall %d. real %d\n",
-				  args[0], rmsg->syscall, isRealDesc(args[0]));
+			VFD_PRINT("** read fd %ld, syscall %d. real %d. flag %d\n",
+				  args[0], rmsg->syscall, isRealDesc(args[0]),
+				  rmsg->flag);
 			assert(SYS_read == rmsg->syscall);
-			if (!isRealDesc(args[0])) {
-				syscall_getpid(pid);
-				VFD_PRINT("Read a virtual fd\n");
-			}
+			if (!rmsg->flag) syscall_getpid(pid);
+			//if (!isRealDesc(args[0])) {
+			//	syscall_getpid(pid);
+			//	VFD_PRINT("Read a virtual fd\n");
+			//}
 		}
-		break;*/
+		break;
 	}
 }
 
@@ -187,9 +191,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_fcntl:
 	case SYS_epoll_ctl:
 	case SYS_setsockopt:
-		PRINT(">>>>> follower is handling [%3ld].\n", syscall_num);
 		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
+		PRINT(">>>>> follower is handling [%ld]. rmsg %d\n",
+		      syscall_num, rmsg.syscall);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
@@ -292,24 +297,27 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 	assert(child_count > 0);
 	monitor_buf = malloc(child_count+8);
 
-//	if (child_fd != 3) {	// TODO: Selectively fd handling rules.
-	// Send all file read, including local file read.
-	{
+	msg.syscall = 0;	// SYS_read x86
+	// Send "non local file read".
+	if (!isRealDesc(child_fd)) {
 		// We first want to retrieve child memory with params.
 		get_child_data(pid, monitor_buf, child_buf, child_count);
+		msg.flag = 1;	// have read info.
 		// We then want to send syscall info to Followers.
-		msg.syscall = 0;	// SYS_read x86
 		if (retval > 0) {	// read something correct
 			msg.len = retval;
 			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
-			ret = write(fd, (void*)&msg, retval+16);
+			ret = write(fd, (void*)&msg, retval + MSG_HEADER_SIZE);
 			MSG_PRINT("ret %d, retval %ld\n", ret, retval);
 		} else {		// read unsuccessful, ret negative
 			msg.len = 0;
 			msg.retval = retval;
-			ret = write(fd, (void*)&msg, 16);
+			ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 		}
+	} else {
+		msg.flag = 0;	// no info to read.
+		ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	}
 	free(monitor_buf);
 	assert(ret != -1);
@@ -426,15 +434,25 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 		ret = strncmp(dir_whitelist[i], prefix, (size > 7) ? 7 : size);
 		if (!ret) {
 			in_list_flag = 1;	// ret=0: found in white list.
-			PRINT("** Found in white list. prefix %s\n", prefix);
 			break;
 		}
 	}
-	if (!in_list_flag) {
-		PRINT("** Not found in whitelist\n");
-	}
 	VFD_PRINT("open index[%d]. fd %ld. prefix %s. in wl %d\n",
 		  open_close_idx++, retval, prefix, in_list_flag);
+	// update master VDT
+	if (retval >= 0) {
+		fd_vtab[retval].id = retval;
+		if (in_list_flag) {
+			fd_vtab[retval].real = 1;
+			PRINT("** Found in white list. prefix %s\n", prefix);
+		} else {
+			fd_vtab[retval].real = 0;
+			PRINT("** Not found in whitelist\n");
+		}
+		VFD_PRINT("vtab_index %d, id %ld, real %d\n", vtab_index,
+			  retval, fd_vtab[retval].real);
+		vtab_index++;
+	}
 	msg.flag = in_list_flag;	// flag=1: found file in the white list.
 	msg.syscall = 2;	// SYS_open x86
 	msg.len = 0;
@@ -493,16 +511,33 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		break;
 	/* This guy delete fd. */
 	case SYS_close:
-		if (syscall_num == SYS_close)
+		if (syscall_num == SYS_close) {
 			VFD_PRINT("close index[%d]. fd %ld. ret %ld\n",
 				  open_close_idx++, args[0], retval);
+			if (retval == 0) {
+				int closefd = args[0];
+				assert(closefd >= 0);
+				fd_vtab[closefd].id = 0;
+				vtab_index--;
+			}
+		}
 	/* The following syscalls will create new fd.
 	 * "open, socket, accept4, epoll_create1" */
 	//case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
-		if (syscall_num == SYS_accept4)
+		if (syscall_num == SYS_accept4) {
 			VFD_PRINT("accept4 index[%d]. fd %ld\n",
 				  open_close_idx++, retval);
+			// update master VDT
+			if (retval >= 0) {
+				fd_vtab[retval].id = retval;
+				fd_vtab[retval].real = 0;
+				PRINT("vtab_index %d, id %ld, real %d\n",
+				      vtab_index, retval,
+				      fd_vtab[retval].real);
+				vtab_index++;
+			}
+		}
 	/* The following syscalls manipulate fd, and the return value affects
 	 * code after that. */
 	case SYS_writev:
@@ -518,6 +553,13 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		VFD_PRINT("%s index[%d]. fd %ld\n",
 			  syscall_num == SYS_socket?"socket":"epoll_create1",
 			  open_close_idx++, retval);
+		if (retval >= 0) {
+			fd_vtab[retval].id = retval;
+			fd_vtab[retval].real = 0;
+			VFD_PRINT("vtab_index %d, id %ld, real %d\n",
+				  vtab_index, retval, fd_vtab[retval].real);
+			vtab_index++;
+		}
 	}
 
 }

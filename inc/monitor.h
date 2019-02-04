@@ -83,6 +83,13 @@ static inline int isRealDesc(int id)
 	return fd_vtab[id].real;
 }
 
+static inline int isUsedDesc(int id)
+{
+	assert(id >= 0);
+	assert(id < VDT_SIZE);
+	return (fd_vtab[id].id != 0);
+}
+
 void pre_syscall(long syscall, int64_t args[]);
 void post_syscall(long syscall, long result);
 

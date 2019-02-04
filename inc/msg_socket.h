@@ -32,6 +32,8 @@
 /* Definations for ring buffer. */
 #define MAX_RINGBUF_SIZE	256
 
+#define MSG_HEADER_SIZE		16
+
 typedef struct sockaddr SA;
 
 /**
@@ -40,7 +42,7 @@ typedef struct sockaddr SA;
  * */
 typedef struct _message_t {
 	short syscall;		// 2 bytes
-	short flag;		// 2 bytes, not used so far
+	short flag;		// 2 bytes
 	unsigned int len;	// 4 bytes
 	long retval;		// 8 bytes
 	char buf[MSG_SIZE];
