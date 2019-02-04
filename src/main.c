@@ -91,9 +91,8 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
-					  &skip_post_handling,
-					  &terminate);
-		if (unlikely(terminate)) break;
+					  &skip_post_handling);
+		//if (unlikely(terminate)) break;
 #endif
 		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)

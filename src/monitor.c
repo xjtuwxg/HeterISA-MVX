@@ -46,7 +46,7 @@ void post_syscall(long syscall, long result)
  * The pre syscall handler mainly handles the syscall params.
  * */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
-			       int *skip_post_handling, int *term)
+			       int *skip_post_handling)
 {
 	int val;
 	msg_t *rmsg = NULL;
@@ -147,7 +147,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			//	  isRealDesc(args[0]));
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("**%s fd %ld, syscall %d. real %d. flag %d\n",
-				  syscall_num==SYS_read?"read":"write",
+			  syscall_num==SYS_read?"read":"write",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
 			assert(SYS_writev == rmsg->syscall);
@@ -179,6 +179,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		}
 		break;
 	case SYS_exit_group:
+		PRINT("exit\n");
 		break;
 	}
 }
@@ -201,7 +202,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_setsockopt:
 		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
-		PRINT(">>>>> follower is handling [%ld]. rmsg %d\n",
+		PRINT(">>>>> follower is handling [%ld]. rmsg syscall %d\n",
 		      syscall_num, rmsg.syscall);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
@@ -534,6 +535,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 				  vtab_index, retval, fd_vtab[retval].real);
 			vtab_index++;
 		}
+		break;
 
 	/** (2) The following syscalls only have to send the retval. **/
 	case SYS_openat:
