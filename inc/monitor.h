@@ -76,7 +76,7 @@ vdt_entry_t fd_vtab[VDT_SIZE];
 static int vtab_index = 3; // point to next available fd.
 static int open_close_idx = 0;
 
-static inline void initVDT()
+static inline void initVDT(void)
 {
 	memset(fd_vtab, 0, sizeof(vdt_entry_t)*VDT_SIZE);
 	fd_vtab[1].real = 1;
@@ -102,7 +102,7 @@ void post_syscall(long syscall, long result);
 
 /* Follower syscall handling code. */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
-			       int *skip_post_handling);
+			       int *skip_post_handling, int *term);
 void follower_wait_post_syscall(pid_t pid, long syscall_num,
 				int64_t syscall_retval, int64_t args[]);
 //void follower_wait_post_syscall_sel(pid_t pid, long syscall_num,

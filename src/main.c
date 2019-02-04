@@ -26,6 +26,7 @@
 #include "debug.h"		// FATAL & PRINT
 #include "ptrace.h"
 #include "monitor.h"
+#include "common.h"		// likely, unlikely
 
 #define IP_CLIENT	"10.4.4.16"
 
@@ -90,7 +91,9 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
-					  &skip_post_handling);
+					  &skip_post_handling,
+					  &terminate);
+		if (unlikely(terminate)) break;
 #endif
 		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
@@ -117,6 +120,7 @@ int main(int argc, char **argv)
 		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
+		if (unlikely(terminate)) send_terminate_sig(clientfd);
 #endif
 
 		RAW_PRINT("\n");

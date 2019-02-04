@@ -46,7 +46,7 @@ void post_syscall(long syscall, long result)
  * The pre syscall handler mainly handles the syscall params.
  * */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
-			       int *skip_post_handling)
+			       int *skip_post_handling, int *term)
 {
 	int val;
 	msg_t *rmsg = NULL;
@@ -177,6 +177,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 				PRINT("simulate SYS_read with getpid\n");
 			}
 		}
+		break;
+	case SYS_exit_group:
 		break;
 	}
 }
@@ -581,6 +583,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		master_syscall_return(fd, syscall_tbl[syscall_num], retval);
 		break;
 
+	case SYS_exit_group:
+		PRINT("exit\n");
+		break;
 	}
 
 }

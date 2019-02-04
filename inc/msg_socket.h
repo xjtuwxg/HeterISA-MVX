@@ -15,6 +15,7 @@
 #include <pthread.h>		// pthread_t
 #include <sys/types.h>
 #include <arpa/inet.h>		// inet_pton
+#include <assert.h>
 
 #define MAXEVENTS	64
 #define MSG_SIZE	4032
@@ -86,6 +87,17 @@ int create_client_socket(char *ip);
 int create_server_socket(void);
 
 void msg_thread_init(void);
+
+//void send_msg(int fd, int syscall, int flag, uint32_t len, uint64_t retval,
+//	      char*buf, uint32_t bufsize);
+
+static inline void send_terminate_sig(int fd)
+{
+	msg.syscall = 231;	// SYS_exit_group on x86
+	msg.len = 0;
+	int ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
+	assert(ret != -1);
+}
 
 /* Ring buffer related interfaces */
 ringbuf_t ringbuf_new(void);
