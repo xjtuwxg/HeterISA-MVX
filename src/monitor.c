@@ -10,7 +10,8 @@ void pre_syscall(long syscall, int64_t args[])
     syscall_entry_t ent = syscalls[syscall];
 
     /* current, we want to print the syscall params */
-    fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
+    //fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
+    PRINT("(%d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
 #if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
@@ -33,7 +34,8 @@ void post_syscall(long syscall, long result)
     syscall_entry_t ent = syscalls[syscall];
 
     //PRINT(" = 0x%lx (origin)\n", result);
-    fprintf(stderr, " = %ld (0x%lx) (local syscall exec)\n", result, result);
+    //fprintf(stderr, " = %ld (0x%lx) (local syscall exec)\n", result, result);
+    PRINT(" = %ld (0x%lx) (local syscall exec)\n", result, result);
 #if 0
     if (ent.name != 0) {
         /* Print system call result */
@@ -129,14 +131,15 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			assert(SYS_close == rmsg->syscall);
 		}
 		break;
-	//case SYS_accept:
+	case SYS_accept:
 	case SYS_accept4:
 		{
 			rmsg = ringbuf_wait(ringbuf);
 			PRINT("SYS_accept4 %d\n", rmsg->syscall);
 			VFD_PRINT("** accept4 fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
-			assert(SYS_accept4 == rmsg->syscall);
+			assert(SYS_accept4 == rmsg->syscall
+			       || SYS_accept == rmsg->syscall);
 			syscall_dup(pid);
 		}
 		break;

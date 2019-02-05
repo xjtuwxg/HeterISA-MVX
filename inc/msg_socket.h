@@ -150,7 +150,7 @@ static inline msg_t* ringbuf_wait(ringbuf_t rb)
 #include "debug.h"
 static inline void print_msg(msg_t msg)
 {
-	PRINT("** syscall [%d], flag %d, len %d, retval %ld.\n",
+	PRINT("** sending syscall %d, flag %d, len %d, retval %ld.\n",
 	      msg.syscall, msg.flag, msg.len, msg.retval);
 }
 
