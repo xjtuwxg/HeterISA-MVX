@@ -5,4 +5,5 @@
 [ 57] = {1, "close", "int fd"},
 [ 71] = {4, "sendfile", "int ofd", "int ifd", "off_t *ofs", "size_t count"},
 [222] = {6, "mmap", "void *addr", "size_t lenght", "int prot", "int flags", "int fd", "off_t offset"},
+[210] = {2, "shutdown", "int sockfd", "int how"},
 [335] = {0, "endsyscall"},
