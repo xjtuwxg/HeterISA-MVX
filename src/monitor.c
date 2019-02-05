@@ -240,10 +240,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
+	case SYS_read:
 	case SYS_writev:
 	case SYS_accept:
 	case SYS_accept4:
-	case SYS_read:
 	case SYS_epoll_pwait:
 	case SYS_getsockopt:
 	case SYS_sendfile:
@@ -301,14 +301,15 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 			msg.retval = retval;
 			memcpy(msg.buf, monitor_buf, retval);
 			ret = write(fd, (void*)&msg, retval + MSG_HEADER_SIZE);
-			MSG_PRINT("ret %d, retval %ld\n", ret, retval);
 		} else {		// read unsuccessful, ret negative
 			msg.len = 0;
 			msg.retval = retval;
 			ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 		}
+		MSG_PRINT("ret %d, retval %ld\n", ret, retval);
 	} else {
 		msg.flag = 0;	// no info to read.
+		msg.retval = retval;
 		ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	}
 	free(monitor_buf);
