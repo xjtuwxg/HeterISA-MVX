@@ -51,6 +51,7 @@ int main(int argc, char **argv)
 		FATAL("%s. child", strerror(errno));
 	}
 
+	/* Initiate the virtual descriptor table. */
 	initVDT();
 
 	/* parent, also the monitor (tracer) */
@@ -85,12 +86,11 @@ int main(int argc, char **argv)
 
 		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
-		pre_syscall(syscall_num, args);
+		pre_syscall_print(syscall_num, args);
 #ifdef __x86_64__
 		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
-		//if (unlikely(terminate)) break;
 #endif
 		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 			      syscall_num, syscall_retval);
 			break;
 		}
-		post_syscall(syscall_num, syscall_retval);
+		post_syscall_print(syscall_num, syscall_retval);
 #ifdef __x86_64__
 		/* Follower wants to wait leader's "syscall retval" */
 		if (skip_post_handling) continue;

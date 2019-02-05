@@ -5,7 +5,7 @@
 
 static int count = 0;
 /* @param: syscall num & arguments */
-void pre_syscall(long syscall, int64_t args[])
+void pre_syscall_print(long syscall, int64_t args[])
 {
     syscall_entry_t ent = syscalls[syscall];
 
@@ -23,17 +23,15 @@ void pre_syscall(long syscall, int64_t args[])
 	    RAW_PRINT(", %s: 0x%lx", ent.sc_arg.arg[i], args[i]);
 	}
 	RAW_PRINT(")\n");
-	// if the syscall is read, we modify the input
     }
 #endif
 }
 
 /* @param: syscall num & return value */
-void post_syscall(long syscall, long result)
+void post_syscall_print(long syscall, long result)
 {
     syscall_entry_t ent = syscalls[syscall];
 
-    //PRINT(" = 0x%lx (origin)\n", result);
     //fprintf(stderr, " = %ld (0x%lx) (local syscall exec)\n", result, result);
     PRINT(" = %ld (0x%lx) (local syscall exec)\n", result, result);
 #if 0

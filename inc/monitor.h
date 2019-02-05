@@ -97,8 +97,9 @@ static inline int isUsedDesc(int id)
 	return (fd_vtab[id].id != 0);
 }
 
-void pre_syscall(long syscall, int64_t args[]);
-void post_syscall(long syscall, long result);
+/* Print the syscall param & retval information. */
+void pre_syscall_print(long syscall, int64_t args[]);
+void post_syscall_print(long syscall, long result);
 
 /* Follower syscall handling code. */
 void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
