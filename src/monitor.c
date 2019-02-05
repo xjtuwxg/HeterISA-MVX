@@ -558,9 +558,10 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		}
 	/* The following syscalls will create new fd.
 	 * "open, socket, accept4, epoll_create1" */
-	//case SYS_accept:// ret a descriptor of acceted socket
+	case SYS_accept:// ret a descriptor of acceted socket
 	case SYS_accept4:
-		if (syscall_num == SYS_accept4) {
+		if (syscall_num == SYS_accept4
+		    || syscall_num == SYS_accept) {
 			VFD_PRINT("accept4 index[%d]. fd %ld\n",
 				  open_close_idx++, retval);
 			// update master VDT
