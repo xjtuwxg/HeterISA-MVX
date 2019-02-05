@@ -263,8 +263,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
-	//case SYS_accept:
 	case SYS_writev:
+	case SYS_accept:
 	case SYS_accept4:
 	case SYS_read:
 	case SYS_epoll_pwait:
@@ -276,7 +276,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		update_retval(pid, master_retval);
 		VFD_PRINT("=%ld\n", master_retval);
 
-		if (syscall_num == SYS_accept4) {
+		if (syscall_num == SYS_accept4
+		    || syscall_num == SYS_accept) {
 			VFD_PRINT("accept4 index[%d]. = %ld\n = %ld (master)\n",
 			    open_close_idx++, syscall_retval, master_retval);
 			fd_vtab[vtab_index].id = master_retval;
