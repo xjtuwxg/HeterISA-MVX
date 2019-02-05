@@ -188,16 +188,6 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
 		//      __func__, rmsg.buf, rmsg.len, master_retval);
 		break;
-	// write to a local file should not take effect??
-//	case SYS_writev:
-//		if (args[0] != 5) break;
-/*		sem_wait(&ringbuf->sem);
-		ringbuf_pop(ringbuf, &rmsg);
-		assert(syscall_num == rmsg.syscall);
-		master_retval = rmsg.retval;
-		update_retval(pid, master_retval);
-		PRINT("=%ld\n", master_retval);*/
-		break;
 
 	/* This two syscalls are only used to intercept fd operations. */
 	case SYS_epoll_create1:
