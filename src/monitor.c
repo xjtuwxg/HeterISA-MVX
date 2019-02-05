@@ -306,11 +306,13 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 			msg.retval = retval;
 			ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 		}
-		MSG_PRINT("ret %d, retval %ld\n", ret, retval);
+		MSG_PRINT("not real fd. ret %d, retval %ld. flag 1.\n",
+			  ret, retval);
 	} else {
 		msg.flag = 0;	// no info to read.
 		msg.retval = retval;
 		ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
+		MSG_PRINT("real fd. ret %d, retval %ld. flag 0\n", ret, retval);
 	}
 	free(monitor_buf);
 	assert(ret != -1);
