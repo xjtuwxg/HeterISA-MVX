@@ -54,24 +54,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	msg_t *rmsg = NULL;
 
 	switch (syscall_num) {
-/*	case SYS_read:	// Wait read buffer sent from master variant.
-		if (args[0] != 3) {
-			// Wait for the non-empty ringbuf.
-			rmsg = ringbuf_wait(ringbuf);
-			assert(SYS_read == rmsg->syscall);
-			// If it's a normal read syscall, use the top msg_t to
-			// update the param, and delete it in post syscall handler.
-			if (rmsg->retval >= 0) {
-				update_child_data(pid, args[1], rmsg->buf,
-						  rmsg->len);
-			}
-			// If read returns negative number, nothing to handle
-			// here, just jmp to the post syscall handler.
-			syscall_getpid(pid);
-		} else {
-			*skip_post_handling = 1;
-		}
-		break;*/
 	case SYS_epoll_pwait:
 #if __x86_64__
 		{
@@ -144,21 +126,16 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		}
 		break;
 	case SYS_writev:
-//	case SYS_read:
 		{
-			//VFD_PRINT("r/w fd %ld. real %d\n", args[0],
-			//	  isRealDesc(args[0]));
 			rmsg = ringbuf_wait(ringbuf);
 			VFD_PRINT("**%s fd %ld, syscall %d. real %d. flag %d\n",
 			  syscall_num==SYS_read?"read":"write",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
 			assert(SYS_writev == rmsg->syscall);
-			//assert((SYS_writev == rmsg->syscall)
-			//       || (SYS_read == rmsg->syscall));
 			if (!isRealDesc(args[0])) {
 				syscall_getpid(pid);
-				VFD_PRINT("A virtual fd\n");
+				VFD_PRINT("simulate SYS_write\n");
 			}
 		}
 		break;
