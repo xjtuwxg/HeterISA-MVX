@@ -229,6 +229,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
+		if (syscall_num == SYS_read) {
+			PRINT("pc: 0x%lx\n", get_pc(pid));
+		}
 	case SYS_writev:
 	case SYS_accept:
 	case SYS_accept4:

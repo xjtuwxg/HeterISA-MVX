@@ -93,6 +93,27 @@ long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term)
 
 }
 
+uint64_t get_pc(pid_t pid)
+{
+	struct user_regs_struct regs;
+	int64_t pc64;
+#ifdef __x86_64__
+	if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+		ERROR("PTRACE_GETREGS %s", strerror(errno));
+	pc64 = regs.rip;
+#endif
+#ifdef __aarch64__
+	struct iovec iov;
+	iov.iov_base = &regs;
+	iov.iov_len = sizeof(regs);
+        if (ptrace(PTRACE_GETREGSET, pid, 1, &iov) == -1)
+		FATAL("ptrace_getregset error %s.", strerror(errno));
+	pc64 = regs.pc;
+#endif
+	return pc64;
+}
+
+
 // ================ Methods to get/modify child memory space ================
 /**
  * Copy data from parent address space (src, len) to child process (pid, dst).
