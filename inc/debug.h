@@ -3,6 +3,7 @@
 
 #include <stdio.h>	// stderr
 #include <stdlib.h>	// EXIT_FAILURE
+#include <assert.h>	// assert()
 
 /**
  * The DEBUG mode print functions.
@@ -11,20 +12,20 @@
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \
-        fprintf(stderr, "[mvx fatal]: " __VA_ARGS__); \
+        fprintf(stderr, "[MVX Fatal]: " __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
-    } while (0)
+    } while (0);
 
 #define ERROR(...) \
 	do { \
-		fprintf(stderr, "[mvx error]: "__VA_ARGS__); \
+		fprintf(stderr, "[MVX Error]: "__VA_ARGS__); \
 		fputc('\n', stderr); \
-	} while(0)
+	} while(0);
 
 #define PRINT(...) \
     do { \
-	fprintf(stdout, "[mvx]: " __VA_ARGS__); \
+	fprintf(stdout, "[MVX]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
 
@@ -47,11 +48,11 @@
 #ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \
     do { \
-	fprintf(stdout, "[mvx msg]: " __VA_ARGS__); \
+	fprintf(stdout, "[MVX Msg]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
 #else	// ifdef _MSG_DEBUG
-#define MSG_PRINT(...)	do {} while(0)
+#define MSG_PRINT(...)	do {} while(0);
 #endif	// end	_MSG_DEBUG
 
 /**
@@ -61,11 +62,22 @@
 #ifdef _VFD_DEBUG
 #define VFD_PRINT(...) \
     do { \
-	fprintf(stdout, "[mvx vfd]: " __VA_ARGS__); \
+	fprintf(stdout, "[MVX VFD]: " __VA_ARGS__); \
 	fflush(stdout); \
     } while (0);
 #else	// ifdef _VFD_DEBUG
-#define VFD_PRINT(...)	do {} while(0)
+#define VFD_PRINT(...)	do {} while(0);
 #endif	// end	_VFD_DEBUG
+
+#define _ASSERT
+#ifdef _ASSERT
+#define mvx_assert(expr, ...) \
+    do { \
+	fprintf(stdout, "[MVX Assert]: " __VA_ARGS__); \
+	assert(expr); \
+    } while(0);
+#else
+#define mvx_assert(expr, ...) do {} while(0);
+#endif
 
 #endif	// _DEBUG_H

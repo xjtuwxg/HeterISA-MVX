@@ -4,6 +4,7 @@
 [ 56] = {4, "openat", "int dirfd", "char *pathname", "int flags", "mode_t mode"},
 [ 57] = {1, "close", "int fd"},
 [ 71] = {4, "sendfile", "int ofd", "int ifd", "off_t *ofs", "size_t count"},
+[207] = {6, "recvfrom", "int sockfd", "void *buf", "size_t len", "int flags", "struct sockaddr *", "socklen_t *"},
 [222] = {6, "mmap", "void *addr", "size_t lenght", "int prot", "int flags", "int fd", "off_t offset"},
 [210] = {2, "shutdown", "int sockfd", "int how"},
 [335] = {0, "endsyscall"},

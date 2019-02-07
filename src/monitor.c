@@ -108,7 +108,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("SYS_close %d\n", rmsg->syscall);
 			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
-			assert(SYS_close == rmsg->syscall);
+			//mvx_assert(SYS_close == rmsg->syscall);
 		}
 		break;
 	case SYS_accept:
@@ -143,7 +143,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			VFD_PRINT("** read fd %ld, syscall %d. real %d. flag %d\n",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
-			assert(SYS_read == rmsg->syscall);
+			//assert(SYS_read == rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param;  in post syscall handler.
 			if (rmsg->flag) {
@@ -306,6 +306,21 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 		MSG_PRINT("real fd. ret %d, retval %ld. flag 0\n", ret, retval);
 	}
 	free(monitor_buf);
+	assert(ret != -1);
+}
+
+/**
+ * ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+ *                  struct sockaddr *src_addr, socklen_t *addrlen);
+ * */
+static inline void master_sys_recvfrom(pid_t pid, int fd, int64_t args[],
+		      int64_t retval)
+{
+	int ret = 0;
+
+	msg.syscall = 45;	// SYS_recvfrom x86
+	msg.retval = retval;
+	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	assert(ret != -1);
 }
 
@@ -494,6 +509,10 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 
 	case SYS_read:
 		master_sys_read(pid, fd, args, retval);
+		break;
+
+	case SYS_recvfrom:
+		master_sys_recvfrom(pid, fd, args, retval);
 		break;
 
 	/* The following two only affect VDT size, no need to send message to
