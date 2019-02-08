@@ -11,12 +11,12 @@ void pre_syscall_print(long syscall, int64_t args[])
 
     /* current, we want to print the syscall params */
     //fprintf(stderr, "(%3d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
-    PRINT("(%d) [%3ld] %s\n", count++, syscall, syscall_name[syscall]);
+    PRINT("(%d) %s #%ld\n", count++, syscall_name[syscall], syscall);
 #if 1
     if (ent.name != 0) {
 	int nargs = ent.nargs;
 	int i;
-	PRINT("[%3ld] %s (", syscall, ent.name);
+	PRINT("[%ld] %s (", syscall, ent.name);
 	if (nargs != 0)
 	    RAW_PRINT("%s: 0x%lx", ent.sc_arg.arg[0], args[0]);
 	for (i = 1; i < nargs; i++) {
@@ -33,7 +33,8 @@ void post_syscall_print(long syscall, long result)
     syscall_entry_t ent = syscalls[syscall];
 
     //fprintf(stderr, " = %ld (0x%lx) (local syscall exec)\n", result, result);
-    PRINT(" = %ld (0x%lx) (local syscall exec)\n", result, result);
+    PRINT("--------- Post Syscall Print ----------\n");
+    PRINT("= %ld (0x%lx) (local syscall exec)\n", result, result);
 #if 0
     if (ent.name != 0) {
         /* Print system call result */
@@ -108,7 +109,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("SYS_close %d\n", rmsg->syscall);
 			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
-			//mvx_assert(SYS_close == rmsg->syscall);
+			mvx_assert(SYS_close == rmsg->syscall);
 		}
 		break;
 	case SYS_accept:
@@ -143,7 +144,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			VFD_PRINT("** read fd %ld, syscall %d. real %d. flag %d\n",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
-			//assert(SYS_read == rmsg->syscall);
+			assert(SYS_read == rmsg->syscall
+			       || SYS_recvfrom == rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param;  in post syscall handler.
 			if (rmsg->flag) {
@@ -180,13 +182,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_setsockopt:
 		sem_wait(&ringbuf->sem);
 		ringbuf_pop(ringbuf, &rmsg);
-		PRINT(">>>>> follower is handling [%ld]. rmsg syscall %d\n",
+		PRINT(">>> follower is handling [%ld] (retval only). rmsg syscall %d\n",
 		      syscall_num, rmsg.syscall);
 		assert(syscall_num == rmsg.syscall);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
-		//PRINT("%s: msg.buf: 0x%s, msg.len: %u. =master_retval %ld\n",
-		//      __func__, rmsg.buf, rmsg.len, master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 
 	/* This two syscalls are only used to intercept fd operations. */
@@ -213,7 +214,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		}
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
-		VFD_PRINT("=%ld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
@@ -223,15 +224,15 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		if (vtab_index > 0) vtab_index--;
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 		update_retval(pid, master_retval);
-		VFD_PRINT("=%ld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 		break;
 
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
-		if (syscall_num == SYS_read) {
-			PRINT("pc: 0x%lx\n", get_pc(pid));
-		}
+	//	if (syscall_num == SYS_read) {
+	//		PRINT("pc: 0x%lx\n", get_pc(pid));
+	//	}
 	case SYS_writev:
 	case SYS_accept:
 	case SYS_accept4:
@@ -242,7 +243,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
-		VFD_PRINT("=%ld\n", master_retval);
+		PRINT("=%ld\n", master_retval);
 
 		if (syscall_num == SYS_accept4
 		    || syscall_num == SYS_accept) {
@@ -322,6 +323,7 @@ static inline void master_sys_recvfrom(pid_t pid, int fd, int64_t args[],
 	msg.retval = retval;
 	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	assert(ret != -1);
+	PRINT("Sending syscall 45 (recvfrom), ret %ld\n", retval);
 }
 
 /**

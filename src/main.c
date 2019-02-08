@@ -30,6 +30,7 @@
 
 #define IP_CLIENT	"10.4.4.16"
 
+//char arch[24];
 /**
  * Main function for multi-ISA MVX
  * Use: ./mvx_monitor <executable> <args>

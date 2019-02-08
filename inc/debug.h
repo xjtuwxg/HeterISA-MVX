@@ -58,7 +58,7 @@
 /**
  * Debug mode print message for virtual fd.
  * */
-#define _VFD_DEBUG
+//#define _VFD_DEBUG
 #ifdef _VFD_DEBUG
 #define VFD_PRINT(...) \
     do { \
@@ -73,7 +73,7 @@
 #ifdef _ASSERT
 #define mvx_assert(expr, ...) \
     do { \
-	fprintf(stdout, "[MVX Assert]: " __VA_ARGS__); \
+	if (!(expr)) fprintf(stdout, "[MVX Assert]: " __VA_ARGS__); \
 	assert(expr); \
     } while(0);
 #else
