@@ -37,7 +37,6 @@
  * */
 int main(int argc, char **argv)
 {
-	int clientfd;
 
 	if (argc <= 1)
 	    FATAL("too few arguments: %d", argc);
@@ -58,7 +57,10 @@ int main(int argc, char **argv)
 	/* parent, also the monitor (tracer) */
 	/* Initiate the message thread (both server and client). */
 	msg_thread_init();
+#ifdef __aarch64__
+	int clientfd;
 	clientfd = create_client_socket(IP_CLIENT);
+#endif
 
 	waitpid(pid, 0, 0); // sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);

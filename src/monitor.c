@@ -195,9 +195,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	case SYS_socket:
 		VFD_PRINT("socket/epoll_create1 index [%3d]\n",
 			  open_close_idx++);
-		if (syscall_retval >= 0)
+		if (syscall_retval >= 0) {
 			fd_vtab[vtab_index].id = syscall_retval;
 			fd_vtab[vtab_index++].real = 0;
+		}
 		break;
 
 	/* (2) Handle separately and fill the fd_vtab. The following syscalls were
