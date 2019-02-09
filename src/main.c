@@ -37,7 +37,6 @@
  * */
 int main(int argc, char **argv)
 {
-
 	if (argc <= 1)
 	    FATAL("too few arguments: %d", argc);
 
@@ -51,18 +50,16 @@ int main(int argc, char **argv)
 		FATAL("%s. child", strerror(errno));
 	}
 
+	/* ===== parent, also the monitor (tracer) ===== */
 	/* Initiate the virtual descriptor table. */
 	initVDT();
-
-	/* parent, also the monitor (tracer) */
 	/* Initiate the message thread (both server and client). */
-	msg_thread_init();
 #ifdef __aarch64__
-	int clientfd;
-	clientfd = create_client_socket(IP_CLIENT);
+	int clientfd = create_client_socket(IP_CLIENT);
 #endif
+	msg_thread_init();	// The server socket and pthread.
 
-	waitpid(pid, 0, 0); // sync with PTRACE_TRACEME
+	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
 	int terminate = 0;
