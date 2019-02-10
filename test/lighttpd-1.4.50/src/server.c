@@ -2053,7 +2053,7 @@ int main (int argc, char **argv) {
 
     do {
         server * const srv = server_init();
-	fprintf(stdout, "(%s): server %p\n", __func__, srv);
+	fprintf(stdout, "(%s): server 0x%12x\n", __func__, srv);
 
         if (graceful_restart) {
             server_sockets_restore(srv);
