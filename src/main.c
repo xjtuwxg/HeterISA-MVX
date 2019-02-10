@@ -62,13 +62,14 @@ int main(int argc, char **argv)
 	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
-	int terminate = 0;
+#ifdef __x86_64__
 	int skip_post_handling = 0;
+#endif
+	int terminate = 0;
 	int status = 0;
 	while (!terminate) {
 		/* Enter next system call (before entering) */
 		status = 0;
-		skip_post_handling = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
 		if (WSTOPSIG(status) != SIGTRAP) {
@@ -88,6 +89,7 @@ int main(int argc, char **argv)
 		syscall_num = get_regs_args(pid, &regs, args);
 		pre_syscall_print(syscall_num, args);
 #ifdef __x86_64__
+		skip_post_handling = 0;
 		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
