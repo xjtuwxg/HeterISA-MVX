@@ -279,6 +279,8 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		return HANDLER_FINISHED;
 	}
 
+	log_error_write(srv, __FILE__, __LINE__, "sdd", "xg handler 1: ",
+			con->mode, buffer_is_empty(con->physical.path));
 	/* no decision yet, build conf->filename */
 	if (con->mode == DIRECT && buffer_is_empty(con->physical.path)) {
 
