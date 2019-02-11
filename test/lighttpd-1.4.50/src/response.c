@@ -342,6 +342,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			buffer_copy_buffer(con->uri.path_raw, con->request.uri);
 			buffer_copy_buffer(con->uri.path, con->uri.path_raw);
 			buffer_reset(con->uri.query);
+			log_error_write(srv, __FILE__, __LINE__, "s", "xg here 1");
 		} else {
 			char *qstr;
 			if (con->conf.http_parseopts & HTTP_PARSEOPT_URL_NORMALIZE) {
@@ -356,6 +357,8 @@ handler_t http_response_prepare(server *srv, connection *con) {
 					con->file_finished = 1;
 					return HANDLER_FINISHED;
 				}
+				log_error_write(srv, __FILE__, __LINE__, "sd",
+						"xg here 2", qs);
 				qstr = (-1 == qs) ? NULL : con->request.uri->ptr+qs;
 			      #if 0  /* future: might enable here, or below for all requests */
 				/* (Note: total header size not recalculated on HANDLER_COMEBACK
@@ -423,6 +426,9 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		if (!con->conf.allow_http11) {
 			con->request.http_version = HTTP_VERSION_1_0;
 		}
+
+		log_error_write(srv, __FILE__, __LINE__, "sd", "xg handler 2: ",
+				con->conf.log_request_handling);
 
 		if (con->conf.log_request_handling) {
 			log_error_write(srv, __FILE__, __LINE__,  "s",  "-- splitting Request-URI");
@@ -678,6 +684,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			log_error_write(srv, __FILE__, __LINE__,  "sb", "Path         :", con->physical.path);
 		}
 
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 3");
 		r = http_response_physical_path_check(srv, con);
 		if (HANDLER_GO_ON != r) return r;
 
@@ -697,6 +704,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			return r;
 		}
 
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 4");
 		/* if we are still here, no one wanted the file, status 403 is ok I think */
 		if (con->mode == DIRECT && con->http_status == 0) {
 			con->http_status = (con->request.http_method != HTTP_METHOD_OPTIONS) ? 403 : 200;
