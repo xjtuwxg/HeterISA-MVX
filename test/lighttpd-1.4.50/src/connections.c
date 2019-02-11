@@ -1391,8 +1391,8 @@ int connection_state_machine(server *srv, connection *con) {
 			break;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "sddd",
-				"xg print:", con->fd, con->state, done);
+		log_error_write(srv, __FILE__, __LINE__, "sdddd",
+				"xg print:", con->fd, con->state, done, ostate);
 		if (done == -1) {
 			done = 0;
 		} else if (ostate == con->state) {

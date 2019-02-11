@@ -264,6 +264,10 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 handler_t http_response_prepare(server *srv, connection *con) {
 	handler_t r;
 
+	log_error_write(srv, __FILE__, __LINE__, "sddddd",
+		"xg handler resp prep: ", con->mode, con->async_callback,
+		con->error_handler_saved_status, con->http_status,
+		con->request.http_method);
 	/* looks like someone has already done a decision */
 	if (con->mode == DIRECT &&
 	    (con->http_status != 0 && con->http_status != 200)) {
