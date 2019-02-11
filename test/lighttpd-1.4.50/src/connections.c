@@ -1206,6 +1206,11 @@ int connection_state_machine(server *srv, connection *con) {
 				/* response headers received from backend; fall through to start response */
 				/* fall through */
 			case HANDLER_FINISHED:
+				log_error_write(srv, __FILE__, __LINE__, "sdddd",
+					"xg handler finished: ", con->mode,
+					con->conf.error_intercept,
+					con->error_handler_saved_status,
+					con->http_status);
 				if (con->error_handler_saved_status > 0) {
 					con->request.http_method = con->error_handler_saved_method;
 				}
