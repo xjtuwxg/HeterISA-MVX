@@ -684,8 +684,9 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			log_error_write(srv, __FILE__, __LINE__,  "sb", "Path         :", con->physical.path);
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 3");
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 3 ...");
 		r = http_response_physical_path_check(srv, con);
+		log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 3", r);
 		if (HANDLER_GO_ON != r) return r;
 
 		if (con->conf.log_request_handling) {
@@ -697,6 +698,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 
 		/* call the handlers */
 		r = plugins_call_handle_subrequest_start(srv, con);
+		log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 4", r);
 		if (HANDLER_GO_ON != r) {
 			if (con->conf.log_request_handling) {
 				log_error_write(srv, __FILE__, __LINE__,  "s",  "-- subrequest finished");
@@ -704,7 +706,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			return r;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 4");
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 5");
 		/* if we are still here, no one wanted the file, status 403 is ok I think */
 		if (con->mode == DIRECT && con->http_status == 0) {
 			con->http_status = (con->request.http_method != HTTP_METHOD_OPTIONS) ? 403 : 200;
