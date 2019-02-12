@@ -128,11 +128,11 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 
 	if (HANDLER_ERROR != stat_cache_get_entry(srv, con, con->physical.path, &sce)) {
 		/* file exists */
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg seems cache hit");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg seems cache hit");
 	} else {
 		char *pathinfo = NULL;
-		log_error_write(srv, __FILE__, __LINE__, "sd", "xg error",
-				errno);
+		//log_error_write(srv, __FILE__, __LINE__, "sd", "xg error",
+		//		errno);
 		switch (errno) {
 		case EACCES:
 			con->http_status = 403;
@@ -174,7 +174,7 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 
 		/* not found, perhaps PATHINFO */
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg not found??");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg not found??");
 		{
 			/*(might check at startup that s->document_root does not end in '/')*/
 			size_t len = buffer_string_length(con->physical.basedir);
@@ -193,7 +193,7 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 			sce = nsce;
 			if (!S_ISDIR(sce->st.st_mode)) break;
 		}
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 222");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg here 222");
 
 		if (NULL == pathinfo || !S_ISREG(sce->st.st_mode)) {
 			/* no it really doesn't exists */
@@ -210,8 +210,8 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 			return HANDLER_FINISHED;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "sd", "xg physical path",
-				pathinfo);
+		//log_error_write(srv, __FILE__, __LINE__, "sd", "xg physical path",
+		//		pathinfo);
 		/* we have a PATHINFO */
 		if (pathinfo) {
 			size_t len = strlen(pathinfo), reqlen;
@@ -249,8 +249,8 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 		return HANDLER_FINISHED;
 	};
 #endif
-	log_error_write(srv, __FILE__, __LINE__, "sd", "xg st_mode",
-				sce->st.st_mode);
+	//log_error_write(srv, __FILE__, __LINE__, "sd", "xg st_mode",
+	//			sce->st.st_mode);
 	if (S_ISDIR(sce->st.st_mode)) {
 		if (con->uri.path->ptr[buffer_string_length(con->uri.path) - 1] != '/') {
 			/* redirect to .../ */
@@ -273,10 +273,10 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 handler_t http_response_prepare(server *srv, connection *con) {
 	handler_t r;
 
-	log_error_write(srv, __FILE__, __LINE__, "sddddd",
-		"xg handler resp prep: ", con->mode, con->async_callback,
-		con->error_handler_saved_status, con->http_status,
-		con->request.http_method);
+	//log_error_write(srv, __FILE__, __LINE__, "sddddd",
+	//	"xg handler resp prep: ", con->mode, con->async_callback,
+	//	con->error_handler_saved_status, con->http_status,
+	//	con->request.http_method);
 
 	/* looks like someone has already done a decision */
 	if (con->mode == DIRECT &&
@@ -289,8 +289,8 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		return HANDLER_FINISHED;
 	}
 
-	log_error_write(srv, __FILE__, __LINE__, "sdd", "xg handler 1: ",
-			con->mode, buffer_is_empty(con->physical.path));
+	//log_error_write(srv, __FILE__, __LINE__, "sdd", "xg handler 1: ",
+	//		con->mode, buffer_is_empty(con->physical.path));
 	/* no decision yet, build conf->filename */
 	if (con->mode == DIRECT && buffer_is_empty(con->physical.path)) {
 
@@ -344,7 +344,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		buffer_copy_buffer(con->uri.authority, con->request.http_host);
 		buffer_to_lower(con->uri.authority);
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 0");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg here 0");
 		if (con->request.http_method == HTTP_METHOD_CONNECT
 		    || (con->request.http_method == HTTP_METHOD_OPTIONS
 			&& con->request.uri->ptr[0] == '*'
@@ -353,10 +353,10 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			buffer_copy_buffer(con->uri.path_raw, con->request.uri);
 			buffer_copy_buffer(con->uri.path, con->uri.path_raw);
 			buffer_reset(con->uri.query);
-			log_error_write(srv, __FILE__, __LINE__, "s", "xg here 1");
+		//	log_error_write(srv, __FILE__, __LINE__, "s", "xg here 1");
 		} else {
 			char *qstr;
-			log_error_write(srv, __FILE__, __LINE__, "s", "xg here 2");
+		//	log_error_write(srv, __FILE__, __LINE__, "s", "xg here 2");
 			if (con->conf.http_parseopts & HTTP_PARSEOPT_URL_NORMALIZE) {
 				/*size_t len = buffer_string_length(con->request.uri);*/
 				int qs = burl_normalize(con->request.uri, srv->tmp_buf, con->conf.http_parseopts);
@@ -369,8 +369,8 @@ handler_t http_response_prepare(server *srv, connection *con) {
 					con->file_finished = 1;
 					return HANDLER_FINISHED;
 				}
-				log_error_write(srv, __FILE__, __LINE__, "sd",
-						"xg here 2", qs);
+		//		log_error_write(srv, __FILE__, __LINE__, "sd",
+		//				"xg here 2", qs);
 				qstr = (-1 == qs) ? NULL : con->request.uri->ptr+qs;
 			      #if 0  /* future: might enable here, or below for all requests */
 				/* (Note: total header size not recalculated on HANDLER_COMEBACK
@@ -439,8 +439,8 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			con->request.http_version = HTTP_VERSION_1_0;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "sd", "xg handler 2: ",
-				con->conf.log_request_handling);
+		//log_error_write(srv, __FILE__, __LINE__, "sd", "xg handler 2: ",
+		//		con->conf.log_request_handling);
 
 		if (con->conf.log_request_handling) {
 			log_error_write(srv, __FILE__, __LINE__,  "s",  "-- splitting Request-URI");
@@ -696,9 +696,9 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			log_error_write(srv, __FILE__, __LINE__,  "sb", "Path         :", con->physical.path);
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 3 ...");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg here 3 ...");
 		r = http_response_physical_path_check(srv, con);
-		log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 3", r);
+		//log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 3", r);
 		if (HANDLER_GO_ON != r) return r;
 
 		if (con->conf.log_request_handling) {
@@ -710,7 +710,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 
 		/* call the handlers */
 		r = plugins_call_handle_subrequest_start(srv, con);
-		log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 4", r);
+		//log_error_write(srv, __FILE__, __LINE__, "sd", "xg here 4", r);
 		if (HANDLER_GO_ON != r) {
 			if (con->conf.log_request_handling) {
 				log_error_write(srv, __FILE__, __LINE__,  "s",  "-- subrequest finished");
@@ -718,7 +718,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			return r;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 5");
+		//log_error_write(srv, __FILE__, __LINE__, "s", "xg here 5");
 		/* if we are still here, no one wanted the file, status 403 is ok I think */
 		if (con->mode == DIRECT && con->http_status == 0) {
 			con->http_status = (con->request.http_method != HTTP_METHOD_OPTIONS) ? 403 : 200;

@@ -1206,11 +1206,11 @@ int connection_state_machine(server *srv, connection *con) {
 				/* response headers received from backend; fall through to start response */
 				/* fall through */
 			case HANDLER_FINISHED:
-				log_error_write(srv, __FILE__, __LINE__, "sdddd",
-					"xg handler finished: ", con->mode,
-					con->conf.error_intercept,
-					con->error_handler_saved_status,
-					con->http_status);
+			//	log_error_write(srv, __FILE__, __LINE__, "sdddd",
+			//		"xg handler finished: ", con->mode,
+			//		con->conf.error_intercept,
+			//		con->error_handler_saved_status,
+			//		con->http_status);
 				if (con->error_handler_saved_status > 0) {
 					con->request.http_method = con->error_handler_saved_method;
 				}
@@ -1306,7 +1306,7 @@ int connection_state_machine(server *srv, connection *con) {
 				log_error_write(srv, __FILE__, __LINE__, "sdd", "unknown ret-value: ", con->fd, r);
 				break;
 			}
-			log_error_write(srv, __FILE__, __LINE__, "sddd", "xg print fd, r, state: ", con->fd, r, con->state);
+			//log_error_write(srv, __FILE__, __LINE__, "sddd", "xg print fd, r, state: ", con->fd, r, con->state);
 
 			if (con->state == CON_STATE_HANDLE_REQUEST && ostate == CON_STATE_READ_POST) {
 				ostate = CON_STATE_HANDLE_REQUEST;
@@ -1391,8 +1391,8 @@ int connection_state_machine(server *srv, connection *con) {
 			break;
 		}
 
-		log_error_write(srv, __FILE__, __LINE__, "sdddd",
-				"xg print:", con->fd, con->state, done, ostate);
+		//log_error_write(srv, __FILE__, __LINE__, "sdddd",
+		//		"xg print:", con->fd, con->state, done, ostate);
 		if (done == -1) {
 			done = 0;
 		} else if (ostate == con->state) {
