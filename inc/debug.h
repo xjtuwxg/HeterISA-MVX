@@ -45,7 +45,7 @@
  * Debug mode print message for message layer.
  * */
 //#define _MSG_DEBUG
-//#ifdef _MSG_DEBUG
+#ifdef _MSG_DEBUG
 #define MSG_PRINT(...) \
     do { \
 	fprintf(stdout, "[MVX Msg]: " __VA_ARGS__); \
