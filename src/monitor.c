@@ -169,7 +169,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		PRINT(">>> follower is handling [%ld] (retval only). rmsg syscall %d\n",
 		      syscall_num, rmsg.syscall);
-		assert(syscall_num == rmsg.syscall);
+		mvx_assert(syscall_num == rmsg.syscall, "local: %ld, recv: %d\n",
+			   syscall_num, rmsg.syscall);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
