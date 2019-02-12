@@ -56,9 +56,41 @@ static inline int syscall_getpid(pid_t pid)
 	return ret;
 }
 
-long get_regs_args(pid_t pid, struct user_regs_struct *regs, long long args[]);
-long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
+/**
+ * Replace the x86 syscall with a SYS_dup.
+ * (Increase the descriptor table index, to replace accept4, etc.)
+ * */
+static inline int syscall_dup(pid_t pid)
+{
+	int ret = 0;
+#ifdef __x86_64__
+	ret = ptrace(PTRACE_POKEUSER, pid, 8*ORIG_RAX, SYS_dup);
+#endif
+	return ret;
+}
 
+/**
+ * Update the syscall return value with retval.
+ * */
+static inline int update_retval(pid_t pid, int64_t retval)
+{
+	int ret = 0;
+#ifdef __x86_64__
+	ret = ptrace(PTRACE_POKEUSER, pid, 8*RAX, retval);
+#endif
+	return ret;
+}
+
+/**
+ * Operations on get regs, retval, PC value.
+ * */
+long get_regs_args(pid_t pid, struct user_regs_struct *regs, int64_t args[]);
+long long get_retval(pid_t pid, struct user_regs_struct *regs, int *term);
+uint64_t get_pc(pid_t pid);
+
+/**
+ * Update or retrieve child memory data.
+ * */
 int update_child_data(pid_t pid, long long dst, char *src, size_t len);
 int get_child_data(pid_t pid, char *dst, long long src, size_t len);
 

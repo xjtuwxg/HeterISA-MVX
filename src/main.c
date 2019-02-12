@@ -26,17 +26,17 @@
 #include "debug.h"		// FATAL & PRINT
 #include "ptrace.h"
 #include "monitor.h"
+#include "common.h"		// likely, unlikely
 
 #define IP_CLIENT	"10.4.4.16"
 
+//char arch[24];
 /**
  * Main function for multi-ISA MVX
  * Use: ./mvx_monitor <executable> <args>
  * */
 int main(int argc, char **argv)
 {
-	int clientfd;
-
 	if (argc <= 1)
 	    FATAL("too few arguments: %d", argc);
 
@@ -50,24 +50,29 @@ int main(int argc, char **argv)
 		FATAL("%s. child", strerror(errno));
 	}
 
-	/* parent, also the monitor (tracer) */
+	/* ===== parent, also the monitor (tracer) ===== */
+	/* Initiate the virtual descriptor table. */
+	initVDT();
 	/* Initiate the message thread (both server and client). */
-	msg_thread_init();
-	clientfd = create_client_socket(IP_CLIENT);
+#ifdef __aarch64__
+	int clientfd = create_client_socket(IP_CLIENT);
+#endif
+	msg_thread_init();	// The server socket and pthread.
 
-	waitpid(pid, 0, 0); // sync with PTRACE_TRACEME
+	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
-	int terminate = 0;
+#ifdef __x86_64__
 	int skip_post_handling = 0;
+#endif
+	int terminate = 0;
 	int status = 0;
 	while (!terminate) {
 		/* Enter next system call (before entering) */
 		status = 0;
-		skip_post_handling = 0;
 		if (ptrace_syscall_status(pid, &status) < 0)
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
-		if (WSTOPSIG(status) != 5) {
+		if (WSTOPSIG(status) != SIGTRAP) {
 			PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
 			      WSTOPSIG(status));
 			break;
@@ -76,19 +81,19 @@ int main(int argc, char **argv)
 		/* (1) The following code handles syscall params, before tracee
 		 *     entering the kernel. */
 		struct user_regs_struct regs;
-		long long args[6];
-		long syscall_num;
-		long long syscall_retval;
+		int64_t args[6];
+		int64_t syscall_retval;
+		uint64_t syscall_num;
 
 		/* Get system call arguments */
 		syscall_num = get_regs_args(pid, &regs, args);
-		pre_syscall(syscall_num, args);
+		pre_syscall_print(syscall_num, args);
 #ifdef __x86_64__
-		/* Follower variant has to wait the master variant' input */
+		skip_post_handling = 0;
+		/* Follower wants to wait the leader's "input" */
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
 #endif
-
 		/* Run system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
 			FATAL("PTRACE_SYSCALL error 2: %s.", strerror(errno));
@@ -98,25 +103,26 @@ int main(int argc, char **argv)
 		/* Get system call result, and print it */
 		syscall_retval = get_retval(pid, &regs, &terminate);
 		if (terminate) {
-			PRINT("syscall #%ld, ret %lld. terminate\n",
+			PRINT("syscall #%ld, ret %ld. terminate\n",
 			      syscall_num, syscall_retval);
 			break;
 		}
+		post_syscall_print(syscall_num, syscall_retval);
+#ifdef __x86_64__
+		/* Follower wants to wait leader's "syscall retval" */
+		if (skip_post_handling) continue;
+		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
+					   args);
+#endif
 
-		post_syscall(syscall_num, syscall_retval);
 #ifdef __aarch64__
-		/* Master gets the user input, and syncs the value to slave
-		 * variant. */
+		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
+		if (unlikely(terminate)) send_terminate_sig(clientfd);
 #endif
-#ifdef __x86_64__
-		/* Follower wants to wait leader's syscall retval */
-		if (!skip_post_handling)
-			follower_wait_post_syscall(pid, syscall_num);
-		follower_wait_post_syscall_sel(pid, syscall_num, args);
+
 		RAW_PRINT("\n");
-#endif
 	}
 	PRINT("Finish main loop!\n");
 }

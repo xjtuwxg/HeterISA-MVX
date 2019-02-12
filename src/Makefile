@@ -15,8 +15,5 @@ all: mvx_monitor
 mvx_monitor: main.c monitor.c msg_socket.c ptrace.c
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c monitor.c msg_socket.c ptrace.c $(LDFLAGS)
 
-#debug_monitor: skeleton.c monitor.c msg_socket.c ptrace.c
-#	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ skeleton.c monitor.c msg_socket.c ptrace.c $(LDFLAGS)
-
 clean:
-	rm -f mvx_monitor #debug_monitor
+	rm -f mvx_monitor

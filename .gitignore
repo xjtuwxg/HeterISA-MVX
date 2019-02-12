@@ -138,3 +138,5 @@ basic
 basic-musl
 core
 epoll
+
+test/lighttpd-1.4.50

@@ -1,5 +1,5 @@
-#include "msg_socket.h"
 #include "debug.h"
+#include "msg_socket.h"
 
 int port = 8888;
 
@@ -15,6 +15,7 @@ ringbuf_t ringbuf_new(void)
 		rb->head = rb->tail = 0;
 		rb->size = 0;
 		sem_init(&rb->sem, 0, 0);
+		sem_init(&rb->lock, 0, 1);	// NOTE: 2nd param.
 		return rb;
 	}
 	return 0;
@@ -27,6 +28,7 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 {
 	if (rb->size >= MAX_RINGBUF_SIZE) return -1;
 
+	sem_wait(&rb->lock);	// lock the critical section
 	/* Fill the ringbuf */
 	rb->msg[rb->head] = msg;
 	/* Advance the head indexa*/
@@ -34,6 +36,7 @@ int ringbuf_add(ringbuf_t rb, msg_t *msg)
 	else rb->head++;
 	/* Increase the size */
 	rb->size++;
+	sem_post(&rb->lock);	// unlock the critical section
 
 	/* WARN: This operation increase the global semaphore. To work
 	 * correctly, call sem_wait first before calling ringbuf_pop() */
@@ -51,6 +54,7 @@ int ringbuf_pop(ringbuf_t rb, msg_t *msg)
 
 	if (rb->size == 0) return -1;
 
+	sem_wait(&rb->lock);	// lock the critical section
 	/* Retrive the msg value from ringbuf, and copy to the param msg. */
 	del_msg = rb->msg[rb->tail];
 	memcpy(msg, del_msg, del_msg->len + 16);
@@ -59,8 +63,11 @@ int ringbuf_pop(ringbuf_t rb, msg_t *msg)
 	else rb->tail++;
 	/* Decrease the size */
 	rb->size--;
+	sem_post(&rb->lock);	// unlock the critical section
 
 	/* Remove the allocated memory */
+	MSG_PRINT("** after pop tail %lu (syscall %u), new tail %lu\n",
+	      rb->tail-1, del_msg->syscall, rb->tail);
 	free(del_msg);
 
 	return 0;
@@ -183,15 +190,18 @@ static int accept_connection(int listenfd, int epollfd)
 void process_data(int fd)
 {
 	ssize_t cnt;
-	char buf[512];
-	msg_t *new_msg = malloc(sizeof(msg_t));	// not free in this func
+	//char buf[512];
+	char buf[1024];	// limit the message size to 1024 bytes.
+	// malloc in this func but not free here, delete in "ringbuf_pop"
+	msg_t *new_msg = malloc(sizeof(msg_t));
 
-	/* Read the msg_t from socket fd: first read 16 bytes header, then
-	 * read the message buffer */
+	/* Read the msg_t from socket fd: read 16 bytes header first, then
+	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	MSG_PRINT("%s: syscall %d, len %u, flag %d, ret 0x%lx\n", __FILE__,
-		new_msg->syscall, new_msg->len, new_msg->flag, new_msg->retval);
+	MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx. cnt %lu\n",
+		  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
+		  new_msg->flag, new_msg->retval, cnt);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);
@@ -225,11 +235,11 @@ void * msg_thread_main(void *args)
 		FATAL("epoll create error");
 	}
 	event.data.fd = listenfd;
-	//event.events = EPOLLIN | EPOLLET;
 	event.events = EPOLLIN;
 	if (epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &event) < 0)
 		fprintf(stderr, "epoll ctr error\n");
 
+	/* Loop handling of the incoming connections and data messages. */
 	while (1) {
 		int nfds, i;
 		/* nfds, events are output values */

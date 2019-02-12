@@ -6,6 +6,9 @@ main:
 testall:
 	$(MAKE) -C test
 
+testlighttpd:
+	$(MAKE) -C test lighttpd
+
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C test clean
