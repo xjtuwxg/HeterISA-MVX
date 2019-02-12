@@ -80,8 +80,6 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 	case SYS_open:
 		{
 			rmsg = ringbuf_wait(ringbuf);
-			PRINT("syscall %u. tail %lu\n", rmsg->syscall,
-			      ringbuf->tail);
 			//VFD_PRINT("open fd %ld\n", args[0]);
 			assert(SYS_open == rmsg->syscall);
 			/* "flag=1": open file in whitelist */
@@ -95,7 +93,8 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			PRINT("SYS_close %d\n", rmsg->syscall);
 			VFD_PRINT("** close fd %ld, syscall %d\n",
 				  args[0], rmsg->syscall);
-			mvx_assert(SYS_close == rmsg->syscall);
+			mvx_assert((SYS_close == rmsg->syscall),
+				   "rmsg->syscall %d", rmsg->syscall);
 		}
 		break;
 	case SYS_accept:
@@ -217,16 +216,12 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* (2') The following syscalls were handled before the params, and they
 	 * are handled again here for the retval. */
 	case SYS_read:
-	//	if (syscall_num == SYS_read) {
-	//		PRINT("pc: 0x%lx\n", get_pc(pid));
-	//	}
 	case SYS_writev:
 	case SYS_accept:
 	case SYS_accept4:
 	case SYS_epoll_pwait:
 	case SYS_getsockopt:
 	case SYS_sendfile:
-		//PRINT("Update retval of syscall %ld\n", syscall_num);
 		ringbuf_pop(ringbuf, &rmsg);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
@@ -348,8 +343,6 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	msg.retval = retval;
 	memcpy(msg.buf, x86_events, x86_epoll_len);
 	ret = write(fd, (void*)&msg, x86_epoll_len+16);
-	//PRINT("epoll_pwait write ret: %d. errno %d. len %lu, %lu\n",
-	//      ret, errno, x86_epoll_len, events_len);
 	free(events);
 	free(x86_events);
 	assert(ret != -1);
@@ -368,12 +361,12 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	char *optval;
 	unsigned int optlen = 0; //args[4];
 
-	PRINT("getsockopt: %ld, %ld, %ld, 0x%lx, 0x%lx | %ld\n",
-	      args[0], args[1], args[2], args[3], args[4], retval);
+	//PRINT("getsockopt: %ld, %ld, %ld, 0x%lx, 0x%lx | %ld\n",
+	//      args[0], args[1], args[2], args[3], args[4], retval);
 	get_child_data(pid, (char*)&optlen, args[4], 4);
 	optval = malloc(optlen);
 	get_child_data(pid, (char*)&optlen, args[3], optlen);
-	PRINT("optlen 0x%x, optval %s\n", optlen, optval);
+	//PRINT("optlen 0x%x, optval %s\n", optlen, optval);
 	msg.syscall = 55;	// SYS_getsockopt x86
 	msg.len = optlen;
 	msg.retval = retval;
@@ -464,13 +457,13 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 {
 	int ret = 0;
-	//PRINT("** master syscall [%3ld], retval: 0x%lx\n", syscall, retval);
+
 	/* Prepare the msg_t and send. */
 	msg.syscall = syscall;	// syscall number on x86 platform
 	msg.len = 0;
 	msg.retval = retval;
 	ret = write(fd, &msg, 16);
-	//PRINT("** %s: write %d bytes.\n", __func__, ret);
+
 	print_msg(msg);
 	assert(ret != -1);
 }
@@ -521,11 +514,14 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		break;
 
 	/** (2) The following syscalls only have to send the retval. **/
-	case SYS_openat:
+	/** (2.1) The first category of syscall operates the FDs. For example:
+	 *        "open, socket, accept4, epoll_create1" will create new fd;
+	 *        "close" will delete the fd;
+	 *        "writev, fcntl, ..." will manipulate fd. */
+	case SYS_openat:	// This guy increase fd on success.
 		master_sys_openat_sel(pid, fd, args, retval);
 		break;
-	/* This guy delete fd. */
-	case SYS_close:
+	case SYS_close:		// This guy delete fd.
 		if (syscall_num == SYS_close) {
 			VFD_PRINT("close index[%d]. fd %ld. ret %ld\n",
 				  open_close_idx++, args[0], retval);
@@ -536,12 +532,9 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 				vtab_index--;
 			}
 		}
-	/* The following syscalls will create new fd.
-	 * "open, socket, accept4, epoll_create1" */
-	case SYS_accept:// ret a descriptor of acceted socket
+	case SYS_accept:	// ret a descriptor of acceted socket
 	case SYS_accept4:
-		if (syscall_num == SYS_accept4
-		    || syscall_num == SYS_accept) {
+		if (syscall_num == SYS_accept4 || syscall_num == SYS_accept) {
 			VFD_PRINT("accept4 index[%d]. fd %ld\n",
 				  open_close_idx++, retval);
 			// update master VDT
@@ -554,9 +547,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 				vtab_index++;
 			}
 		}
-	/* The following syscalls manipulate fd, and the return value affects
-	 * code after that. */
-	case SYS_writev:
+	case SYS_writev:	// return value affects code after writev.
 		if (syscall_num == SYS_writev) {
 			PRINT("%ld isreal %d\n", args[0], isRealDesc(args[0]));
 			if (isRealDesc(args[0])) msg.flag = 1;
