@@ -130,6 +130,8 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 		/* file exists */
 	} else {
 		char *pathinfo = NULL;
+		log_error_write(srv, __FILE__, __LINE__, "sd", "xg error",
+				errno);
 		switch (errno) {
 		case EACCES:
 			con->http_status = 403;
@@ -205,6 +207,8 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 			return HANDLER_FINISHED;
 		}
 
+		log_error_write(srv, __FILE__, __LINE__, "sd", "xg physical path",
+				pathinfo);
 		/* we have a PATHINFO */
 		if (pathinfo) {
 			size_t len = strlen(pathinfo), reqlen;
@@ -242,6 +246,8 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 		return HANDLER_FINISHED;
 	};
 #endif
+	log_error_write(srv, __FILE__, __LINE__, "sd", "xg st_mode",
+				sce->st.st_mode);
 	if (S_ISDIR(sce->st.st_mode)) {
 		if (con->uri.path->ptr[buffer_string_length(con->uri.path) - 1] != '/') {
 			/* redirect to .../ */
