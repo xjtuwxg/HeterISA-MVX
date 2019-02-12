@@ -128,6 +128,7 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 
 	if (HANDLER_ERROR != stat_cache_get_entry(srv, con, con->physical.path, &sce)) {
 		/* file exists */
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg seems cache hit");
 	} else {
 		char *pathinfo = NULL;
 		log_error_write(srv, __FILE__, __LINE__, "sd", "xg error",
@@ -173,6 +174,7 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 
 		/* not found, perhaps PATHINFO */
 
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg not found??");
 		{
 			/*(might check at startup that s->document_root does not end in '/')*/
 			size_t len = buffer_string_length(con->physical.basedir);
@@ -191,6 +193,7 @@ static handler_t http_response_physical_path_check(server *srv, connection *con)
 			sce = nsce;
 			if (!S_ISDIR(sce->st.st_mode)) break;
 		}
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 222");
 
 		if (NULL == pathinfo || !S_ISREG(sce->st.st_mode)) {
 			/* no it really doesn't exists */
