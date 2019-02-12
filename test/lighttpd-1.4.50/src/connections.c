@@ -192,15 +192,15 @@ static void connection_handle_shutdown(server *srv, connection *con) {
 	connection_reset(srv, con);
 
 	//printf("con->fd %d\n", con->fd);
-	log_error_write(srv, __FILE__, __LINE__, "sd",
-			"before for fd", con->fd);
+	//log_error_write(srv, __FILE__, __LINE__, "sd",
+	//		"before for fd", con->fd);
 	/* close the connection */
 	if (con->fd >= 0 && 0 == shutdown(con->fd, SHUT_WR)) {
 		con->close_timeout_ts = srv->cur_ts;
 		connection_set_state(srv, con, CON_STATE_CLOSE);
 
-		log_error_write(srv, __FILE__, __LINE__, "sd",
-			"after", con->fd);
+	//	log_error_write(srv, __FILE__, __LINE__, "sd",
+	//		"after", con->fd);
 
 		if (srv->srvconf.log_state_handling) {
 			log_error_write(srv, __FILE__, __LINE__, "sd",
