@@ -274,6 +274,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		"xg handler resp prep: ", con->mode, con->async_callback,
 		con->error_handler_saved_status, con->http_status,
 		con->request.http_method);
+
 	/* looks like someone has already done a decision */
 	if (con->mode == DIRECT &&
 	    (con->http_status != 0 && con->http_status != 200)) {
@@ -340,6 +341,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 		buffer_copy_buffer(con->uri.authority, con->request.http_host);
 		buffer_to_lower(con->uri.authority);
 
+		log_error_write(srv, __FILE__, __LINE__, "s", "xg here 0");
 		if (con->request.http_method == HTTP_METHOD_CONNECT
 		    || (con->request.http_method == HTTP_METHOD_OPTIONS
 			&& con->request.uri->ptr[0] == '*'
@@ -351,6 +353,7 @@ handler_t http_response_prepare(server *srv, connection *con) {
 			log_error_write(srv, __FILE__, __LINE__, "s", "xg here 1");
 		} else {
 			char *qstr;
+			log_error_write(srv, __FILE__, __LINE__, "s", "xg here 2");
 			if (con->conf.http_parseopts & HTTP_PARSEOPT_URL_NORMALIZE) {
 				/*size_t len = buffer_string_length(con->request.uri);*/
 				int qs = burl_normalize(con->request.uri, srv->tmp_buf, con->conf.http_parseopts);
