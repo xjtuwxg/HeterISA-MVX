@@ -16,3 +16,6 @@ lighttpd:
 
 curl:
 	./curl.sh
+
+ab:
+	ab -n 1000 -c 10 127.0.0.1:8889/index.html

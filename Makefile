@@ -6,8 +6,11 @@ main:
 testall:
 	$(MAKE) -C test
 
-testlighttpd:
-	$(MAKE) -C test lighttpd
+curllighttpd:
+	$(MAKE) -C test curl
+
+ablighttpd:
+	$(MAKE) -C test ab
 
 clean:
 	$(MAKE) -C src clean
