@@ -8,8 +8,11 @@ basic: basic.c
 epoll: epoll.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
+tiny: tiny.c
+	$(MUSL-CC) $(CFLAGS) -o $@ $<
+
 clean:
-	rm -f basic epoll
+	rm -f basic epoll tiny
 
 lighttpd:
 	../mvx_monitor /opt/lighttpd/sbin/lighttpd -f lighttpd.conf -D

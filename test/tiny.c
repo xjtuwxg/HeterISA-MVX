@@ -379,7 +379,7 @@ void process(int fd, struct sockaddr_in *clientaddr){
 
 int main(int argc, char** argv){
     struct sockaddr_in clientaddr;
-    int default_port = 9999,
+    int default_port = 9989,
         listenfd,
         connfd;
     char buf[256];
@@ -415,7 +415,7 @@ int main(int argc, char** argv){
     // won't kill the whole process.
     signal(SIGPIPE, SIG_IGN);
 
-    for(int i = 0; i < 10; i++) {
+    for(int i = 0; i < 1; i++) {
         int pid = fork();
         if (pid == 0) {         //  child
             while(1){
