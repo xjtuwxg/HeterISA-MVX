@@ -77,15 +77,6 @@ void accept_and_add_new()
 	       socket_fd, epoll_fd, sizeof(in_addr), in_len);
 
 	while ((infd = accept(socket_fd, &in_addr, &in_len)) != -1) {
-#if 0
-		if (getnameinfo(&in_addr, in_len,
-				hbuf, sizeof(hbuf),
-				sbuf, sizeof(sbuf),
-				NI_NUMERICHOST | NI_NUMERICHOST) == 0) {
-			printf("Accepted connection on descriptor %d (host=%s, port=%s)\n",
-					infd, hbuf, sbuf);
-		}
-#endif
 		/* Make the incoming socket non-block
 		 * and add it to list of fds to
 		 * monitor*/
@@ -114,7 +105,7 @@ void accept_and_add_new()
 void process_new_data(int fd)
 {
 	ssize_t count;
-	char buf[16];
+	char buf[512];
 
 	while ((count = read(fd, buf, sizeof(buf) - 1))) {
 		if (count == -1) {

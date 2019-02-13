@@ -1,6 +1,6 @@
 MUSL-CC = musl-gcc
 CFLAGS	= -static
-all: basic epoll
+all: basic epoll tiny
 
 basic: basic.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
