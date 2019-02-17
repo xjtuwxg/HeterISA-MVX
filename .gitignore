@@ -138,6 +138,7 @@ basic
 basic-musl
 core
 epoll
+epoll-vul
 tiny
 a.out
 
