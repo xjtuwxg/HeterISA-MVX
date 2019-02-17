@@ -105,9 +105,9 @@ void accept_and_add_new()
 void process_new_data(int fd)
 {
 	ssize_t count;
-	char buf[512];
+	char buf[16];
 
-	while ((count = read(fd, buf, sizeof(buf) - 1))) {
+	while (count = read(fd, buf, 128)) {
 		if (count == -1) {
 			/* EAGAIN, read all data */
 			if (errno == EAGAIN)
