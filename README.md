@@ -14,18 +14,21 @@ bit late from the inconsistent point.
 
 Popcorn-mvx sent the following syscalls from the master to the follower:
 
-1. The following syscalls send both parameters and retval:
+1) The following syscalls send both parameters and retval:
 ```
 epoll_pwait, getsockopt, sendfile, read, recvfrom.
 ```
-2. The following syscalls only send retval:
+
+2) The following syscalls only send retval:
 ```
 accept, accept4, writev, fcntl, epoll_ctl, setsockopt, openat, close.
 ```
-3. A few syscalls affect the descriptor table:
+
+3) A few syscalls affect the descriptor table:
 ```
 socket, epoll_create1, openat, close.
 ```
-For socket, epoll\_create1 we would like the follower execute them locally.
-4. Others
+For `socket, epoll\_create1` we would like the follower execute them locally.
+
+4) Others
 `exit_group` might want to be taken care of, since it will exit the current process execution.
