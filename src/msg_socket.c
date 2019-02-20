@@ -200,9 +200,9 @@ void process_data(int fd)
 	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx. cnt %lu\n",
-		  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
-		  new_msg->flag, new_msg->retval, cnt);
+	//MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx. cnt %lu\n",
+	//	  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
+	//	  new_msg->flag, new_msg->retval, cnt);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);
