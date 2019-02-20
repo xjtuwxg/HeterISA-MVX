@@ -215,7 +215,7 @@ void process_data(int fd)
 	//	  new_msg->buf, cnt);
 	/* Add msg to ring buffer */
 	ret = ringbuf_add(ringbuf, new_msg);
-	assert(ret != -1);
+	mvx_assert(ret != -1, "Ring buffer full");
 
 	MSG_PRINT("%s: syscall %d (len %u), rb head %lu, rb tail %lu. size %lu\n",
 		  __func__, new_msg->syscall, new_msg->len,
