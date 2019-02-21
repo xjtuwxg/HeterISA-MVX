@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 
 	/* Initiate the message thread (both server and client). */
 	msg_thread_init();	// The server socket and pthread.
-#ifdef __arm64__
+#ifdef __aarch64__
 	/* Wait the follower to setup the server/client socket. */
 	msg_t rmsg;
 	sem_wait(&ringbuf->sem);

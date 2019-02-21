@@ -32,7 +32,7 @@
 #endif
 
 /* Definations for ring buffer. */
-#define MAX_RINGBUF_SIZE	256
+#define MAX_RINGBUF_SIZE	1024//256
 
 #define MSG_HEADER_SIZE		16
 
