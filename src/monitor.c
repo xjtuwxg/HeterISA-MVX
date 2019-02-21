@@ -129,8 +129,9 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 			VFD_PRINT("** read fd %ld, syscall %d. real %d. flag %d\n",
 				  args[0], rmsg->syscall, isRealDesc(args[0]),
 				  rmsg->flag);
-			assert(SYS_read == rmsg->syscall
-			       || SYS_recvfrom == rmsg->syscall);
+			mvx_assert(SYS_read == rmsg->syscall
+			       || SYS_recvfrom == rmsg->syscall,
+			       "rmsg syscall %d", rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param;  in post syscall handler.
 			if (rmsg->flag) {
