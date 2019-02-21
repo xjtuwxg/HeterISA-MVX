@@ -361,6 +361,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	// wait the retval.
 	sem_wait(&ringbuf->sem);
 	ringbuf_pop(ringbuf, &rmsg);
+	fprintf(stderr, "ringbuf size: %d\n", ringbuf_size(ringbuf));
 }
 
 /**

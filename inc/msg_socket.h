@@ -95,9 +95,10 @@ void msg_thread_init(void);
 //static inline void send_terminate_sig(int fd)
 static inline void send_short_msg(int fd, int syscall_num)
 {
+	int ret = 0;
 	msg.syscall = syscall_num;
 	msg.len = 0;
-	int ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
+	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	mvx_assert(ret != -1, "fd %d. ", fd);
 }
 
