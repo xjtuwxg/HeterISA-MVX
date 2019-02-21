@@ -81,7 +81,9 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		{
 			rmsg = ringbuf_wait(ringbuf);
 			//VFD_PRINT("open fd %ld\n", args[0]);
-			assert(SYS_open == rmsg->syscall);
+			mvx_assert(SYS_open == rmsg->syscall,
+				   "local %d, recv %d. ", SYS_open,
+				   rmsg->syscall);
 			/* "flag=1": open file in whitelist */
 			if (!rmsg->flag) syscall_getpid(pid);
 		}
@@ -131,7 +133,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 				  rmsg->flag);
 			mvx_assert(SYS_read == rmsg->syscall
 			       || SYS_recvfrom == rmsg->syscall,
-			       "rmsg syscall %d", rmsg->syscall);
+			       "local %d, recv %d. ", SYS_read, rmsg->syscall);
 			// If it's a normal read syscall, use the top msg_t to
 			// update the param;  in post syscall handler.
 			if (rmsg->flag) {
@@ -170,7 +172,8 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		ringbuf_pop(ringbuf, &rmsg);
 		PRINT(">>> follower is handling [%ld] (retval only). rmsg syscall %d\n",
 		      syscall_num, rmsg.syscall);
-		mvx_assert(syscall_num == rmsg.syscall, "local: %ld, recv: %d. ",
+		mvx_assert(syscall_num == rmsg.syscall,
+			   "local: %ld, recv: %d. ",
 			   syscall_num, rmsg.syscall);
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
