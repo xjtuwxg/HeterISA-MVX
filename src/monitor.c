@@ -153,7 +153,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
  * The post syscall handler in follower mainly handles the syscall retval.
  * e.g., setup the retval of the simulated syscalls.
  * */
-void follower_wait_post_syscall(pid_t pid, long syscall_num,
+void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 				int64_t syscall_retval, int64_t args[])
 {
 	int64_t master_retval;
@@ -235,6 +235,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			fd_vtab[vtab_index].id = master_retval;
 			fd_vtab[vtab_index++].real = 0;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
+		}
+		if (syscall_num == SYS_epoll_pwait) {
+			// send ACK to master
 		}
 		break;
 	}
@@ -324,6 +327,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	struct epoll_event_x86 *x86_events;
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
+	msg_t rmsg;
 
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
@@ -347,6 +351,9 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	free(events);
 	free(x86_events);
 	assert(ret != -1);
+	// wait the retval.
+	sem_wait(&ringbuf->sem);
+	ringbuf_pop(ringbuf, &rmsg);
 }
 
 /**

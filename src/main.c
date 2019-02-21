@@ -28,7 +28,11 @@
 #include "monitor.h"
 #include "common.h"		// likely, unlikely
 
-#define IP_CLIENT	"10.4.4.16"
+#ifdef __aarch64__
+#define IP_SERVER	"10.4.4.16"	// The IP address of the x86 machine.
+#else
+#define IP_SERVER	"10.4.4.36"	// The IP address of the arm64 machine.
+#endif
 
 //char arch[24];
 /**
@@ -53,10 +57,9 @@ int main(int argc, char **argv)
 	/* ===== parent, also the monitor (tracer) ===== */
 	/* Initiate the virtual descriptor table. */
 	initVDT();
+
 	/* Initiate the message thread (both server and client). */
-#ifdef __aarch64__
-	int clientfd = create_client_socket(IP_CLIENT);
-#endif
+	int clientfd = create_client_socket(IP_SERVER);
 	msg_thread_init();	// The server socket and pthread.
 
 	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
@@ -111,8 +114,8 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait leader's "syscall retval" */
 		if (skip_post_handling) continue;
-		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
-					   args);
+		follower_wait_post_syscall(pid, clientfd, syscall_num,
+					   syscall_retval, args);
 #endif
 
 #ifdef __aarch64__
