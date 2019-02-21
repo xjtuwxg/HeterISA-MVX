@@ -238,6 +238,13 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 		}
 		if (syscall_num == SYS_epoll_pwait) {
 			// send ACK to master
+			send_short_msg(fd, 0);
+			/*int ret;
+			msg_t msg;
+			msg.syscall = 0;
+			msg.len = 0;
+			ret = write(fd, &msg, 16);
+			PRINT("fd: %d, ret: %d\n", fd, ret);*/
 		}
 		break;
 	}
@@ -369,8 +376,6 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	char *optval;
 	unsigned int optlen = 0; //args[4];
 
-	//PRINT("getsockopt: %ld, %ld, %ld, 0x%lx, 0x%lx | %ld\n",
-	//      args[0], args[1], args[2], args[3], args[4], retval);
 	get_child_data(pid, (char*)&optlen, args[4], 4);
 	optval = malloc(optlen);
 	get_child_data(pid, (char*)&optlen, args[3], optlen);
@@ -484,7 +489,6 @@ static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		      int64_t retval)
 {
-	//long follower_syscall_num = 0;
 	switch (syscall_num) {
 	/** (1) The following syscalls will send both param and retval. **/
 	case SYS_epoll_pwait:	// Sync the input to follower variant.

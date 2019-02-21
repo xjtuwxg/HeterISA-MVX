@@ -59,8 +59,17 @@ int main(int argc, char **argv)
 	initVDT();
 
 	/* Initiate the message thread (both server and client). */
-	int clientfd = create_client_socket(IP_SERVER);
 	msg_thread_init();	// The server socket and pthread.
+#ifdef __arm64__
+	/* Wait the follower to setup the server/client socket. */
+	msg_t rmsg;
+	sem_wait(&ringbuf->sem);
+	ringbuf_pop(ringbuf, &rmsg);
+#endif
+	int clientfd = create_client_socket(IP_SERVER);
+#ifdef __x86_64__
+	send_short_msg(clientfd, 0);
+#endif
 
 	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
@@ -122,7 +131,8 @@ int main(int argc, char **argv)
 		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
-		if (unlikely(terminate)) send_terminate_sig(clientfd);
+		//if (unlikely(terminate)) send_terminate_sig(clientfd);
+		if (unlikely(terminate)) send_short_msg(clientfd, 231);
 #endif
 
 		RAW_PRINT("\n");
