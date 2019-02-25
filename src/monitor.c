@@ -178,6 +178,9 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 
 	/* This two syscalls are only used to intercept fd operations. */
@@ -206,6 +209,9 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
@@ -216,6 +222,9 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 
 	/* (2') The following syscalls were handled before the params, and they
@@ -240,10 +249,10 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 			fd_vtab[vtab_index++].real = 0;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
 		}
-		if (syscall_num == SYS_epoll_pwait) {
-			// send ACK to master
-			send_short_msg(fd, 0);
-		}
+	//	if (syscall_num == SYS_epoll_pwait) {
+		// send ACK to master
+		send_short_msg(fd, 0);
+	//	}
 		break;
 	}
 #endif
@@ -299,6 +308,11 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 	}
 	free(monitor_buf);
 	assert(ret != -1);
+
+	// wait the ack.
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -315,6 +329,12 @@ static inline void master_sys_recvfrom(pid_t pid, int fd, int64_t args[],
 	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	assert(ret != -1);
 	PRINT("Sending syscall 45 (recvfrom), ret %ld\n", retval);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -357,12 +377,10 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	free(x86_events);
 	assert(ret != -1);
 
-	// wait the retval.
+	// wait the ack.
 	ret = ringbuf_wait_pop(ringbuf, &rmsg);
 	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
 	       ringbuf_size(ringbuf), rmsg.syscall);
-	//fprintf(stderr, "ringbuf size: %ld. syscall %d\n",
-	//	ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -389,6 +407,12 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	ret = write(fd, (void*)&msg, optlen+16);
 	free(optval);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -412,6 +436,12 @@ static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
 	memcpy(msg.buf, (char*)&offset, sizeof(off_t));
 	ret = write(fd, (void*)&msg, sizeof(off_t)+16);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 static inline void master_syscall_return(int fd, long syscall, int64_t retval);
@@ -463,6 +493,12 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 	//PRINT("** master send message of sys_open\n");
 	print_msg(msg);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
@@ -481,6 +517,12 @@ static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 
 	print_msg(msg);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
