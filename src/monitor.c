@@ -204,6 +204,8 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 			fd_vtab[vtab_index++].real = 1;
 			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
 				  rmsg.retval, vtab_index-1, syscall_retval);
+			// send ACK to master
+			send_short_msg(fd, 0);
 			break;
 		}
 		master_retval = rmsg.retval;
