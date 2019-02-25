@@ -150,6 +150,14 @@ static inline msg_t* ringbuf_wait(ringbuf_t rb)
 	return ringbuf_getbottom(rb);
 }
 
+static inline int ringbuf_wait_pop(ringbuf_t rb, msg_t *msg)
+{
+	int ret = 0;
+	sem_wait(&rb->sem);
+	ret = ringbuf_pop(rb, msg);
+	return ret;
+}
+
 #include "debug.h"
 static inline void print_msg(msg_t msg)
 {

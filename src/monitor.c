@@ -243,12 +243,6 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 		if (syscall_num == SYS_epoll_pwait) {
 			// send ACK to master
 			send_short_msg(fd, 0);
-			/*int ret;
-			msg_t msg;
-			msg.syscall = 0;
-			msg.len = 0;
-			ret = write(fd, &msg, 16);
-			PRINT("fd: %d, ret: %d\n", fd, ret);*/
 		}
 		break;
 	}
@@ -362,10 +356,13 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	free(events);
 	free(x86_events);
 	assert(ret != -1);
+
 	// wait the retval.
-	sem_wait(&ringbuf->sem);
-	ringbuf_pop(ringbuf, &rmsg);
-	fprintf(stderr, "ringbuf size: %ld\n", ringbuf_size(ringbuf));
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
+	//fprintf(stderr, "ringbuf size: %ld. syscall %d\n",
+	//	ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
