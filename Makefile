@@ -1,10 +1,13 @@
-all: clean main testall 
+#all: clean main testall 
+all: main testall 
 
 main:
-	$(MAKE) -C src 
+	@echo "[Make] src/"
+	@$(MAKE) -C src 
 
 testall:
-	$(MAKE) -C test
+	@echo "[Make] test/"
+	@$(MAKE) -C test
 
 curllighttpd:
 	$(MAKE) -C test curl
@@ -13,5 +16,6 @@ ablighttpd:
 	$(MAKE) -C test ab
 
 clean:
-	$(MAKE) -C src clean
-	$(MAKE) -C test clean
+	@echo "[Clean] src/ test/"
+	@$(MAKE) -C src clean
+	@$(MAKE) -C test clean

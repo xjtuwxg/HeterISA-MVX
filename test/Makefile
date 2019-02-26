@@ -1,6 +1,9 @@
 MUSL-CC = musl-gcc
 CFLAGS	= -static
-all: basic epoll tiny epoll-vul
+#SRC		= basic.c epoll.c tiny.c epoll-vul.c
+SRC		= basic epoll tiny epoll-vul
+
+all: $(SRC)
 
 basic: basic.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
@@ -15,7 +18,7 @@ tiny: tiny.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f basic epoll tiny epoll-vul
+	@rm -f basic epoll tiny epoll-vul
 
 lighttpd:
 	../mvx_monitor /opt/lighttpd/sbin/lighttpd -f lighttpd.conf -D
