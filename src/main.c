@@ -9,6 +9,7 @@
 
 /* POSIX */
 #include <unistd.h>
+#include <signal.h>		// SIGTRAP
 #include <sys/user.h>		// struct user_regs_struct
 #include <sys/wait.h>
 

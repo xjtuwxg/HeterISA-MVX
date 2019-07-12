@@ -1,5 +1,5 @@
 MUSL-CC = musl-gcc
-CFLAGS	= -static
+CFLAGS	= -static -std=c99
 #SRC		= basic.c epoll.c tiny.c epoll-vul.c
 SRC		= basic epoll tiny epoll-vul
 
