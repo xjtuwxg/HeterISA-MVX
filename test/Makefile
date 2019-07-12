@@ -1,5 +1,5 @@
 MUSL-CC = musl-gcc
-CFLAGS	= -static -std=c99
+CFLAGS	= -static
 #SRC		= basic.c epoll.c tiny.c epoll-vul.c
 SRC		= basic epoll tiny epoll-vul
 
@@ -15,7 +15,7 @@ epoll-vul: epoll-vul.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
 tiny: tiny.c
-	$(MUSL-CC) $(CFLAGS) -o $@ $<
+	$(MUSL-CC) $(CFLAGS) -o $@ $< -std=c99
 
 clean:
 	@rm -f basic epoll tiny epoll-vul
