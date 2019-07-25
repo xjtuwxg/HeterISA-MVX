@@ -77,6 +77,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		}
 		break;
 #if __x86_64__
+	case SYS_openat: // add local interception of openat, but rmsg is open
 	case SYS_open:
 		{
 			rmsg = ringbuf_wait(ringbuf);
@@ -448,6 +449,47 @@ static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
 
 static inline void master_syscall_return(int fd, long syscall, int64_t retval);
 
+/**
+ * master intercepts sys_open syscall.
+ * */
+static inline void master_sys_openat(pid_t pid, int fd, int64_t args[],
+					 int64_t retval)
+{
+	char prefix[8];
+	int ret = 0;
+
+	// get the file name & location to prefix[8]
+	get_child_data(pid, prefix, args[1], 8);
+	prefix[7] = 0;
+
+	VFD_PRINT("open index[%d]. fd %ld. prefix %s.\n",
+		  open_close_idx++, retval, prefix);
+
+	// update master VDT
+	if (retval >= 0) {
+		fd_vtab[retval].id = retval;
+		fd_vtab[retval].real = 1;
+		VFD_PRINT("vtab_index %d, id %ld, real %d\n", vtab_index,
+			  retval, fd_vtab[retval].real);
+		vtab_index++;
+	}
+
+	msg.flag = 1;		// flag=1: always open local file.
+	msg.syscall = 2;	// SYS_open x86
+	msg.len = 0;
+	msg.retval = retval;
+	ret = write(fd, (void*)&msg, 16);
+	//PRINT("** master send message of sys_open\n");
+	print_msg(msg);
+	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
+}
+
 static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 					 int64_t retval)
 {
@@ -577,7 +619,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	 *        "close" will delete the fd;
 	 *        "writev, fcntl, ..." will manipulate fd. */
 	case SYS_openat:	// This guy increase fd on success.
-		master_sys_openat_sel(pid, fd, args, retval);
+		master_sys_openat(pid, fd, args, retval);
 		break;
 	case SYS_close:		// This guy delete fd.
 		if (syscall_num == SYS_close) {
