@@ -5,10 +5,11 @@
 #include <stdlib.h>	// EXIT_FAILURE
 #include <assert.h>	// assert()
 
+#include "config.h"	// _DEBUG
+
 /**
  * The DEBUG mode print functions.
  * */
-//#define _DEBUG
 #ifdef _DEBUG
 #define FATAL(...) \
     do { \

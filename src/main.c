@@ -27,12 +27,7 @@
 #include "ptrace.h"
 #include "monitor.h"
 #include "common.h"		// likely, unlikely
-
-#ifdef __aarch64__
-#define IP_SERVER	"10.4.4.16"	// The IP address of the x86 machine.
-#else
-#define IP_SERVER	"10.4.4.36"	// The IP address of the arm64 machine.
-#endif
+#include "config.h"		// IP_SERVER
 
 //char arch[24];
 /**
