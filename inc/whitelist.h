@@ -2,4 +2,5 @@
 "/var/",
 "/etc/",
 "test/",
-"/dev/"
+"/dev/",
+"lighttpd.conf"
