@@ -198,6 +198,7 @@ void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 	/* (2) Handle separately and fill the fd_vtab. The following syscalls were
 	 * handled before. */
 	case SYS_open:
+	case SYS_openat:	// should intercept openat on x86_64 too
 		ringbuf_pop(ringbuf, &rmsg);
 		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
@@ -309,6 +310,7 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 		ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 		VFD_PRINT("real fd. ret %d, retval %ld. flag 0\n", ret, retval);
 	}
+	print_msg(msg);
 	free(monitor_buf);
 	assert(ret != -1);
 
