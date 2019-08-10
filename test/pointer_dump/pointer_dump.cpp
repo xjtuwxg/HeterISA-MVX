@@ -208,10 +208,18 @@ int disasm_text(char *trans_buf, std::unordered_map<uint64_t, uint64_t> &m_insn_
 	cs_insn *insn;
 	size_t count;   // number of instructions disassembled
 	
+#ifdef __x86_64__
 	if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle)) {
 		printf("ERROR: Failed to initialize engine!\n");
 		return -1;
 	}
+#endif
+#ifdef __aarch64__
+	if (cs_open(CS_ARCH_ARM64, CS_MODE_ARM, &handle)) {
+		printf("ERROR: Failed to initialize engine!\n");
+		return -1;
+	}
+#endif
 	cs_option(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT); // CS_OPT_SYNTAX_ATT represents AT&T syntax
 
 	count = cs_disasm(handle, (unsigned char *)trans_buf, size, address, 0, &insn);
