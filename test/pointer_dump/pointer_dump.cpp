@@ -296,7 +296,7 @@ uint64_t dump_pointers_to_file(pid_t pid)
                 i, section_name[i], addr, size);
 
         outbuf = (char *)malloc(size);
-    	assert(outbuf != NULL);
+	assert(outbuf != NULL);
         entry = (uint64_t *)outbuf;
 again:
         printf("- entry %p\n", entry);
@@ -305,11 +305,11 @@ again:
 	    if (ret != 0) goto end;
 
         for (j = 0; j < size/8; j++) {
-    		// Use unordered_map (hash table) for quick lookup.
+		// Use unordered_map (hash table) for quick lookup.
             // Find all the code pointers; 8-bytes aligned.
-    		if (insn_addrs[entry[j]]) {
-	    		cnt++;
-		    	printf("entry[%d] 0x%lx. offset 0x%lx\n", j, entry[j], entry[j] - base);
+		if (insn_addrs[entry[j]]) {
+			cnt++;
+			printf("entry[%d] 0x%lx. offset 0x%lx\n", j, entry[j], entry[j] - base);
                 fprintf(fp, "%lx\n", entry[j] - base);
 		    }
         }
