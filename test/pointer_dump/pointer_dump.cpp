@@ -59,6 +59,7 @@ void read_binary_info(char *elf_loc)
 	FILE * fp;
 	fp = fopen("binary.info", "r");
 
+	printf("\n- reading binary.info\n");
 	fscanf(fp, "%lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx", 
 		&(binfo._text_addr), &(binfo._text_size), 
 		&(binfo._data_addr), &(binfo._data_size),
@@ -95,7 +96,7 @@ uint64_t read_proc(char *elf_loc, int pid)
 	sprintf(proc_name, "/proc/%d/maps", pid);
 	fproc = fopen(proc_name, "r");
 	
-    printf("\nreading /proc file: %s\n", proc_name);
+    printf("\n- reading /proc file: %s\n", proc_name);
 	while (fgets(buf, 511, fproc) != NULL) {
 	//	printf("[%3d] %s", strlen(buf), buf);
 		/* Find the .text start address */
@@ -241,7 +242,7 @@ uint64_t get_insn_addrs(uint64_t base, uint64_t addr, uint64_t size,
 	char *outbuf = (char *)malloc(size);
 	assert(outbuf != NULL);
 	
-	printf("\nDumping code memory + disassembling code text...\n");
+	printf("\n- Dumping code memory + disassembling code text...\n");
     printf("- .text size %lu\n", size);
 	ptrace_dump_memory(pid, base + addr, size, outbuf);
 
@@ -250,120 +251,6 @@ uint64_t get_insn_addrs(uint64_t base, uint64_t addr, uint64_t size,
 	free(outbuf);
 	return insn_cnt;
 }
-
-#if 0
-/**
- * Check if the data points to an instruction address
- * */
-uint64_t check_code_pointers(uint64_t base, uint64_t addr, uint64_t size, std::unordered_map<uint64_t, uint64_t> &insn_addrs, pid_t pid, char *section_name)
-{
-	if ( (addr == 0) && (size == 0) ) {
-		printf("skiping  %s  section ...\n", section_name);
-		return 0;
-	}
-
-	int ret = 0;
-	uint32_t cnt = 0, i;
-	char *outbuf = (char *)malloc(size);
-	uint32_t *entry = (uint32_t *)outbuf;
-	assert(outbuf != NULL);
-	
-	printf("\nchecking [%s] data ... \n", section_name);
-
-	ret = ptrace_dump_memory(pid, base + addr, size, outbuf);
-	if (ret != 0) goto end;
-	
-	for (i = 0; i < size/4; i++) {
-		// use unordered_map (hash table) for quick lookup.
-		if (insn_addrs[entry[i]]) {
-			cnt++;
-#ifdef DEBUG_DATA_POINTER
-			printf("entry[%d] 0x%x. offset 0x%x\n", i, entry[i], entry[i] - binfo._text_addr_runtime);
-#endif
-		}
-	}
-
-end:	
-	free(outbuf);
-
-	printf("   checked pid [%u] %s data # %d, sensitive data %d\n", pid, section_name, size/4, cnt);
-	
-	return cnt;
-}
-
-uint32_t chk_p2d_section(char *section_name, uint32_t base, uint32_t addr, uint32_t size, pid_t pid)
-{
-	if (addr == 0) return 0;
-
-	int ret = 0;
-	uint32_t cnt = 0, i;
-	char *outbuf = (char *)malloc(size);
-	uint32_t *entry = (uint32_t *)outbuf;
-	assert(outbuf != NULL);
-	
-	printf("\nchecking [%s] data ... base 0x%x, addr 0x%x. start 0x%x\n", section_name, base, addr, base+addr);
-
-	ret = ptrace_dump_memory(pid, base + addr, size, outbuf);
-	if (ret != 0) goto end;
-	
-	for (i = 0; i < size/4; i++) {
-		// Each data should be 4-byte aligned
-		if (entry[i] & 0x3) continue;
-		if ( (entry[i] >= (base + binfo._data_addr)) && (entry[i] <= (base + binfo._data_addr + binfo._data_size)) )
-			cnt++;
-		else if ( (entry[i] >= (base + binfo._bss_addr)) && (entry[i] <= (base + binfo._bss_addr + binfo._bss_size)) )
-			cnt++;
-		else if ( (entry[i] >= (base + binfo._data_relro_addr)) && (entry[i] <= (base + binfo._data_relro_addr + binfo._data_relro_size)) )
-			cnt++;
-		else if ( (entry[i] >= (base + binfo._rodata_addr)) && (entry[i] <= (base + binfo._rodata_addr + binfo._rodata_size)) )
-			cnt++;
-		else if ( (entry[i] >= (base + binfo._rel_dyn_addr)) && (entry[i] <= (base + binfo._rel_dyn_addr + binfo._rel_dyn_size)) )
-			cnt++;
-	}
-
-	printf("cnt %d\n", cnt);
-
-end:
-
-	return cnt;
-}
-
-
-// total instruction number
-uint32_t cnt_insn;
-
-// sensitive code pointer count.
-uint32_t cnt_data_c, cnt_bss_c, cnt_stack_c, cnt_rel_dyn_c, cnt_data_relro_c, cnt_rodata_c;
-
-// data pointer count
-uint32_t cnt_data_d, cnt_bss_d, cnt_relro_d, cnt_stack_d;
-
-// total data count. read from binary.
-uint32_t total_data, total_bss, total_stack, total_rel_dyn, total_data_relro, total_rodata;
-uint32_t total_sensitive_cnt, total_data_cnt, total_sensitive_data_pointer_cnt;
-
-uint32_t check_pointers2data(uint32_t base, pid_t pid)
-{
-	uint32_t cnt = 0;
-	
-	printf("base 0x%x\n", base);
-	printf("data 0x%x,0x%x. bss 0x%x,0x%x. relro 0x%x,0x%x. stack 0x%x,0x%x\n", 
-		binfo._data_addr, binfo._data_size,
-		binfo._bss_addr, binfo._bss_size,
-		binfo._data_relro_addr, binfo._data_relro_size,
-		binfo._stack_addr, binfo._stack_size);
-	
-	cnt_data_d = chk_p2d_section(".data", base, binfo._data_addr, binfo._data_size, pid);
-	cnt_bss_d = chk_p2d_section(".bss", base, binfo._bss_addr, binfo._bss_size, pid);
-	cnt_relro_d = chk_p2d_section(".relro", base, binfo._data_relro_addr, binfo._data_relro_size, pid);
-	cnt_stack_d = chk_p2d_section(".stack", 0, binfo._stack_addr, binfo._stack_size, pid);
-
-	printf("!!.data %d, .bss %d, .relro %d, .stack %d\n", cnt_data_d, cnt_bss_d, cnt_relro_d, cnt_stack_d);
-	printf("Total: %d\n", (cnt_data_d + cnt_bss_d + cnt_relro_d + cnt_stack_d));
-
-	return (cnt_data_d + cnt_bss_d + cnt_relro_d + cnt_stack_d);
-}
-#endif
 
 /**
  * Dump the pointers of .text, .data to files.
@@ -466,8 +353,10 @@ int main(int argc, char **argv)
 	/* Read binary info from config file, dumped with the script. */
 	read_binary_info(elf_loc);
 
-	// This is a simple check in case the binary is not compiled as PIE
-	//if (base == 0x8048000) base = 0;
+	// This is a simple check in case the binary is not compiled as PIE (arm64 and x86_64)
+	if (base == 0x400000) {
+		base = binfo._text_addr_runtime = 0;
+	}
 	
 	// get hash map addr.
 	get_insn_addrs(base, binfo._text_addr, binfo._text_size, insn_addrs, pid);
@@ -476,39 +365,6 @@ int main(int argc, char **argv)
 
     dump_pointers_to_file(pid);
 
-#if 0
-	// check code pointers.
-	cnt_data_c = check_code_pointers(base, binfo._data_addr, binfo._data_size, insn_addrs, pid, ".data");
-	cnt_bss_c = check_code_pointers(base, binfo._bss_addr, binfo._bss_size, insn_addrs, pid, ".bss");
-	cnt_rel_dyn_c = check_code_pointers(base, binfo._rel_dyn_addr, binfo._rel_dyn_size, insn_addrs, pid, ".rel.dyn");
-	cnt_data_relro_c = check_code_pointers(base, binfo._data_relro_addr, binfo._data_relro_size, insn_addrs, pid, ".data.rel.ro");
-	cnt_rodata_c = check_code_pointers(base, binfo._rodata_addr, binfo._rodata_size, insn_addrs, pid, ".rodata");
-	cnt_stack_c = check_code_pointers(0, binfo._stack_addr, binfo._stack_size, insn_addrs, pid, ".stack");
-
-	total_sensitive_cnt = cnt_data_c + cnt_bss_c + cnt_rel_dyn_c + cnt_data_relro_c + cnt_rodata_c + cnt_stack_c;
-	
-	// total data is got from data sections.
-	total_data = (binfo._data_size)/4;
-	total_bss = (binfo._bss_size)/4;
-	total_rel_dyn = (binfo._rel_dyn_size)/4;
-	total_data_relro = (binfo._data_relro_size)/4;
-	total_rodata = (binfo._rodata_size)/4;
-	total_stack = (binfo._stack_size)/4;
-	
-	total_data_cnt = total_data + total_bss + total_rel_dyn + total_data_relro + total_rodata + total_stack;
-
-	printf("\n======== checking pointer to data ... ========\n");
-	total_sensitive_data_pointer_cnt = check_pointers2data(base, pid);
-	
-	printf("\n\n========= Summary =======\n\n");
-	printf("section\tcode pointer/data pointer   total sensitive pointer  total data\n");
-	printf(".data \t\t%d/%d \t\t\t\t%d \t\t%d\n", cnt_data_c, cnt_data_d, (cnt_data_c + cnt_data_d), total_data);
-	printf(".bss \t\t%d/%d \t\t\t%d \t%d\n", cnt_bss_c, cnt_bss_d, (cnt_bss_c + cnt_bss_d), total_bss);
-	printf(".data.relro \t%d/%d \t\t\t%d \t%d\n", cnt_data_relro_c, cnt_relro_d, (cnt_data_relro_c + cnt_relro_d), total_data_relro);
-	printf(".stack \t\t%d/%d \t\t\t%d \t%d\n", cnt_stack_c, cnt_stack_d, (cnt_stack_c + cnt_stack_d), total_stack);
-	printf("\ntotal code pointer %d , total data pointer %d .\n", 
-		(cnt_data_c + cnt_bss_c + cnt_data_relro_c + cnt_stack_c), (cnt_data_d+cnt_bss_d+cnt_relro_d+cnt_stack_d));
-#endif
 	printf("Done\n");
 	
 	return 0;
