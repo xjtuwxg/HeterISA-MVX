@@ -59,7 +59,7 @@ void read_binary_info(char *elf_loc)
 	FILE * fp;
 	fp = fopen("binary.info", "r");
 
-	fscanf(fp, "%x %x %x %x %x %x %x %x %x %x %x %x", 
+	fscanf(fp, "%lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx", 
 		&(binfo._text_addr), &(binfo._text_size), 
 		&(binfo._data_addr), &(binfo._data_size),
 		&(binfo._bss_addr), &(binfo._bss_size),
@@ -67,9 +67,9 @@ void read_binary_info(char *elf_loc)
 		&(binfo._data_relro_addr), &(binfo._data_relro_size),
 		&(binfo._rodata_addr), &(binfo._rodata_size));
 
-	printf(".text [0x%x, 0x%x],\n.data [0x%x, 0x%x],\n"
-           ".bss [0x%x, 0x%x],\n.rel.dyn [0x%x, 0x%x],\n"
-           ".data.rel.ro [0x%x,0x%x],\n.rodata [0x%x,0x%x]\n", 
+	printf(".text [0x%lx, 0x%lx],\n.data [0x%lx, 0x%lx],\n"
+           ".bss [0x%lx, 0x%lx],\n.rel.dyn [0x%lx, 0x%lx],\n"
+           ".data.rel.ro [0x%lx,0x%lx],\n.rodata [0x%lx,0x%lx]\n", 
 		binfo._text_addr, binfo._text_size, 
 		binfo._data_addr, binfo._data_size,
 		binfo._bss_addr, binfo._bss_size,
@@ -100,19 +100,19 @@ uint64_t read_proc(char *elf_loc, int pid)
 	//	printf("[%3d] %s", strlen(buf), buf);
 		/* Find the .text start address */
 		if ( (strstr(buf, "/home/") != NULL) || (strstr(buf, elf_loc) != NULL)) {
-			sscanf(buf, "%llx-%llx %31s %llx %llx:%llx %llu", &start, &end, flags, 
+			sscanf(buf, "%lx-%lx %31s %lx %lx:%lx %lu", &start, &end, flags, 
 					&file_offset, &dev_major, &dev_minor, &inode);
 			if (strcmp(flags, "r-xp") == 0) {
 				ret_code_start = start;
-				printf("==> Find: .text start 0x%llx, end 0x%llx ...\n", start, end);
+				printf("==> Find: .text start 0x%lx, end 0x%lx ...\n", start, end);
 				binfo._text_addr_runtime = start;
 			}
 		}
 		/* Find the .stack start address */
 		if (strstr(buf, "[stack]") != NULL) {
-			sscanf(buf, "%llx-%llx %31s %llx %llx:%llx %llu", &start, &end, flags, 
+			sscanf(buf, "%lx-%lx %31s %lx %lx:%lx %lu", &start, &end, flags, 
 					&file_offset, &dev_major, &dev_minor, &inode);
-			printf("==> Find: .stack start 0x%llx, end 0x%llx. size 0x%llx\n", start, end, end-start);
+			printf("==> Find: .stack start 0x%lx, end 0x%lx. size 0x%lx\n", start, end, end-start);
 			binfo._stack_addr = start;
 			binfo._stack_size = end - start;
 		}
@@ -180,7 +180,7 @@ int ptrace_dump_memory(pid_t pid, uint64_t address, uint64_t size, char *outbuf)
 
 	// read bytes from the tracee's memory
 	int size_rd = pread(memfd, outbuf, size, address);
-	printf("read from tracee's memory. size %d should be equal to pread size %d. errno %x\n", size, size_rd, errno);
+	printf("read from tracee's memory. size %ld should be equal to pread size %d. errno %x\n", size, size_rd, errno);
 	//verify(size == size_rd);
 
 	// write requested memory region to stdout
@@ -222,7 +222,7 @@ int disasm_text(char *trans_buf, std::unordered_map<uint64_t, uint64_t> &m_insn_
 			m_insn_addrs[insn[j].address] = 1;
 		}
 		cs_free(insn, count);
-	    printf("- disasm completed! insn count %d\n", count);
+	    printf("- disasm completed! insn count %ld\n", count);
 	} else
 		printf("ERROR: Failed to disassemble given code!\n");
 
@@ -242,7 +242,7 @@ uint64_t get_insn_addrs(uint64_t base, uint64_t addr, uint64_t size,
 	assert(outbuf != NULL);
 	
 	printf("\nDumping code memory + disassembling code text...\n");
-    printf("- .text size %llu\n", size);
+    printf("- .text size %lu\n", size);
 	ptrace_dump_memory(pid, base + addr, size, outbuf);
 
 	insn_cnt = disasm_text(outbuf, m_insn_addrs, base + addr, size);
@@ -392,12 +392,12 @@ uint64_t dump_pointers_to_file(pid_t pid)
 	fp = fopen("result.info", "w");
 	
 	printf("\nchecking pointers ... \n");
-    printf(" unordered_map size %d\n", insn_addrs.size());
+    printf(" unordered_map size %ld\n", insn_addrs.size());
 
     for (i = 0; i < 3; i++) {
         addr = section[i][0];
         size = section[i][1];
-        printf("\nsection[%d] <%s>: start: 0x%llx, size 0x%llx\n",
+        printf("\nsection[%d] <%s>: start: 0x%lx, size 0x%lx\n",
                 i, section_name[i], addr, size);
 
         outbuf = (char *)malloc(size);
@@ -414,8 +414,8 @@ again:
             // Find all the code pointers; 8-bytes aligned.
     		if (insn_addrs[entry[j]]) {
 	    		cnt++;
-		    	printf("entry[%d] 0x%llx. offset 0x%llx\n", j, entry[j], entry[j] - base);
-                fprintf(fp, "%llx\n", entry[j] - base);
+		    	printf("entry[%d] 0x%lx. offset 0x%lx\n", j, entry[j], entry[j] - base);
+                fprintf(fp, "%lx\n", entry[j] - base);
 		    }
         }
         if ((uint64_t)entry % 8 == 0) {
