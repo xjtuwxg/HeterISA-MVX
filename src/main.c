@@ -28,8 +28,7 @@
 #include "ptrace.h"
 #include "monitor.h"
 #include "common.h"		// likely, unlikely
-
-#define IP_CLIENT	"10.4.4.16"
+#include "config.h"		// IP_SERVER
 
 //char arch[24];
 /**
@@ -54,11 +53,19 @@ int main(int argc, char **argv)
 	/* ===== parent, also the monitor (tracer) ===== */
 	/* Initiate the virtual descriptor table. */
 	initVDT();
+
 	/* Initiate the message thread (both server and client). */
-#ifdef __aarch64__
-	int clientfd = create_client_socket(IP_CLIENT);
-#endif
 	msg_thread_init();	// The server socket and pthread.
+#ifdef __aarch64__
+	/* Wait the follower to setup the server/client socket. */
+	msg_t rmsg;
+	sem_wait(&ringbuf->sem);
+	ringbuf_pop(ringbuf, &rmsg);
+#endif
+	int clientfd = create_client_socket(IP_SERVER);
+#ifdef __x86_64__
+	send_short_msg(clientfd, 0);
+#endif
 
 	waitpid(pid, 0, 0);	// sync with PTRACE_TRACEME
 	ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
@@ -112,15 +119,16 @@ int main(int argc, char **argv)
 #ifdef __x86_64__
 		/* Follower wants to wait leader's "syscall retval" */
 		if (skip_post_handling) continue;
-		follower_wait_post_syscall(pid, syscall_num, syscall_retval,
-					   args);
+		follower_wait_post_syscall(pid, clientfd, syscall_num,
+					   syscall_retval, args);
 #endif
 
 #ifdef __aarch64__
 		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
-		if (unlikely(terminate)) send_terminate_sig(clientfd);
+		//if (unlikely(terminate)) send_terminate_sig(clientfd);
+		if (unlikely(terminate)) send_short_msg(clientfd, 231);
 #endif
 
 		RAW_PRINT("\n");

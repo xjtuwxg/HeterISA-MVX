@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>		// inet_pton
 #include <assert.h>
+#include "debug.h"
 
 #define MAXEVENTS	64
 #define MSG_SIZE	4032
@@ -31,7 +32,7 @@
 #endif
 
 /* Definations for ring buffer. */
-#define MAX_RINGBUF_SIZE	256
+#define MAX_RINGBUF_SIZE	1024//256
 
 #define MSG_HEADER_SIZE		16
 
@@ -91,12 +92,14 @@ void msg_thread_init(void);
 //void send_msg(int fd, int syscall, int flag, uint32_t len, uint64_t retval,
 //	      char*buf, uint32_t bufsize);
 
-static inline void send_terminate_sig(int fd)
+//static inline void send_terminate_sig(int fd)
+static inline void send_short_msg(int fd, int syscall_num)
 {
-	msg.syscall = 231;	// SYS_exit_group on x86
+	int ret = 0;
+	msg.syscall = syscall_num;
 	msg.len = 0;
-	int ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
-	assert(ret != -1);
+	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
+	mvx_assert(ret != -1, "fd %d. ", fd);
 }
 
 /* Ring buffer related interfaces */
@@ -145,6 +148,14 @@ static inline msg_t* ringbuf_wait(ringbuf_t rb)
 {
 	sem_wait(&rb->sem);
 	return ringbuf_getbottom(rb);
+}
+
+static inline int ringbuf_wait_pop(ringbuf_t rb, msg_t *msg)
+{
+	int ret = 0;
+	sem_wait(&rb->sem);
+	ret = ringbuf_pop(rb, msg);
+	return ret;
 }
 
 #include "debug.h"

@@ -15,7 +15,7 @@ epoll-vul: epoll-vul.c
 	$(MUSL-CC) $(CFLAGS) -o $@ $<
 
 tiny: tiny.c
-	$(MUSL-CC) $(CFLAGS) -o $@ $< -std=c99
+	$(MUSL-CC) $(CFLAGS) -std=c99 -o $@ $<
 
 clean:
 	@rm -f basic epoll tiny epoll-vul

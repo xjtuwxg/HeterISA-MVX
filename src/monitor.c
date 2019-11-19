@@ -77,6 +77,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
 		}
 		break;
 #if __x86_64__
+	case SYS_openat: // add local interception of openat, but rmsg is open
 	case SYS_open:
 		{
 			rmsg = ringbuf_wait(ringbuf);
@@ -156,7 +157,7 @@ void follower_wait_pre_syscall(pid_t pid, long syscall_num, int64_t args[],
  * The post syscall handler in follower mainly handles the syscall retval.
  * e.g., setup the retval of the simulated syscalls.
  * */
-void follower_wait_post_syscall(pid_t pid, long syscall_num,
+void follower_wait_post_syscall(pid_t pid, int fd, long syscall_num,
 				int64_t syscall_retval, int64_t args[])
 {
 	int64_t master_retval;
@@ -178,6 +179,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 
 	/* This two syscalls are only used to intercept fd operations. */
@@ -194,6 +198,7 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 	/* (2) Handle separately and fill the fd_vtab. The following syscalls were
 	 * handled before. */
 	case SYS_open:
+	case SYS_openat:	// should intercept openat on x86_64 too
 		ringbuf_pop(ringbuf, &rmsg);
 		VFD_PRINT("open index[%d]\n", open_close_idx++);
 		if (rmsg.flag) { // if load local file, update vtab and continue
@@ -201,11 +206,16 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			fd_vtab[vtab_index++].real = 1;
 			VFD_PRINT("** open fd master %ld. vtab_index %d <--> open fd %ld\n",
 				  rmsg.retval, vtab_index-1, syscall_retval);
+			// send ACK to master
+			send_short_msg(fd, 0);
 			break;
 		}
 		master_retval = rmsg.retval;
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 	case SYS_close:
 		ringbuf_pop(ringbuf, &rmsg);
@@ -216,6 +226,9 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 		VFD_PRINT("close index [%3d]\n", open_close_idx++);
 		update_retval(pid, master_retval);
 		PRINT("=%ld\n", master_retval);
+
+		// send ACK to master
+		send_short_msg(fd, 0);
 		break;
 
 	/* (2') The following syscalls were handled before the params, and they
@@ -240,6 +253,10 @@ void follower_wait_post_syscall(pid_t pid, long syscall_num,
 			fd_vtab[vtab_index++].real = 0;
 			VFD_PRINT("vtab idx %d\n", vtab_index-1);
 		}
+	//	if (syscall_num == SYS_epoll_pwait) {
+		// send ACK to master
+		send_short_msg(fd, 0);
+	//	}
 		break;
 	}
 #endif
@@ -293,8 +310,14 @@ static inline void master_sys_read(pid_t pid, int fd, int64_t args[],
 		ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 		VFD_PRINT("real fd. ret %d, retval %ld. flag 0\n", ret, retval);
 	}
+	print_msg(msg);
 	free(monitor_buf);
 	assert(ret != -1);
+
+	// wait the ack.
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -311,6 +334,12 @@ static inline void master_sys_recvfrom(pid_t pid, int fd, int64_t args[],
 	ret = write(fd, (void*)&msg, MSG_HEADER_SIZE);
 	assert(ret != -1);
 	PRINT("Sending syscall 45 (recvfrom), ret %ld\n", retval);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -328,6 +357,7 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	struct epoll_event_x86 *x86_events;
 	size_t events_len, x86_epoll_len;
 	int ret = 0, i;
+	msg_t rmsg;
 
 	events_len = sizeof(struct epoll_event) * retval;
 	x86_epoll_len = sizeof(struct epoll_event_x86) * retval;
@@ -351,6 +381,11 @@ static inline void master_sys_epoll_pwait(pid_t pid, int fd, int64_t args[],
 	free(events);
 	free(x86_events);
 	assert(ret != -1);
+
+	// wait the ack.
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -366,8 +401,6 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	char *optval;
 	unsigned int optlen = 0; //args[4];
 
-	//PRINT("getsockopt: %ld, %ld, %ld, 0x%lx, 0x%lx | %ld\n",
-	//      args[0], args[1], args[2], args[3], args[4], retval);
 	get_child_data(pid, (char*)&optlen, args[4], 4);
 	optval = malloc(optlen);
 	get_child_data(pid, (char*)&optlen, args[3], optlen);
@@ -379,6 +412,12 @@ static inline void master_sys_getsockopt(pid_t pid, int fd, int64_t args[],
 	ret = write(fd, (void*)&msg, optlen+16);
 	free(optval);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -402,9 +441,56 @@ static inline void master_sys_sendfile(pid_t pid, int fd, int64_t args[],
 	memcpy(msg.buf, (char*)&offset, sizeof(off_t));
 	ret = write(fd, (void*)&msg, sizeof(off_t)+16);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 static inline void master_syscall_return(int fd, long syscall, int64_t retval);
+
+/**
+ * master intercepts sys_open syscall.
+ * */
+static inline void master_sys_openat(pid_t pid, int fd, int64_t args[],
+					 int64_t retval)
+{
+	char prefix[8];
+	int ret = 0;
+
+	// get the file name & location to prefix[8]
+	get_child_data(pid, prefix, args[1], 8);
+	prefix[7] = 0;
+
+	VFD_PRINT("open index[%d]. fd %ld. prefix %s.\n",
+		  open_close_idx++, retval, prefix);
+
+	// update master VDT
+	if (retval >= 0) {
+		fd_vtab[retval].id = retval;
+		fd_vtab[retval].real = 1;
+		VFD_PRINT("vtab_index %d, id %ld, real %d\n", vtab_index,
+			  retval, fd_vtab[retval].real);
+		vtab_index++;
+	}
+
+	msg.flag = 1;		// flag=1: always open local file.
+	msg.syscall = 2;	// SYS_open x86
+	msg.len = 0;
+	msg.retval = retval;
+	ret = write(fd, (void*)&msg, 16);
+	//PRINT("** master send message of sys_open\n");
+	print_msg(msg);
+	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
+}
 
 static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 					 int64_t retval)
@@ -453,6 +539,12 @@ static inline void master_sys_openat_sel(pid_t pid, int fd, int64_t args[],
 	//PRINT("** master send message of sys_open\n");
 	print_msg(msg);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /* ===== Those master syscall handlers only care about the retval. ===== */
@@ -471,6 +563,12 @@ static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 
 	print_msg(msg);
 	assert(ret != -1);
+
+	// wait the ack.
+	msg_t rmsg;
+	ret = ringbuf_wait_pop(ringbuf, &rmsg);
+	mvx_assert(ret == 0, "ringbuf size: %ld. syscall %d",
+	       ringbuf_size(ringbuf), rmsg.syscall);
 }
 
 /**
@@ -481,7 +579,6 @@ static inline void master_syscall_return(int fd, long syscall, int64_t retval)
 void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 		      int64_t retval)
 {
-	//long follower_syscall_num = 0;
 	switch (syscall_num) {
 	/** (1) The following syscalls will send both param and retval. **/
 	case SYS_epoll_pwait:	// Sync the input to follower variant.
@@ -524,7 +621,7 @@ void master_syncpoint(pid_t pid, int fd, long syscall_num, int64_t args[],
 	 *        "close" will delete the fd;
 	 *        "writev, fcntl, ..." will manipulate fd. */
 	case SYS_openat:	// This guy increase fd on success.
-		master_sys_openat_sel(pid, fd, args, retval);
+		master_sys_openat(pid, fd, args, retval);
 		break;
 	case SYS_close:		// This guy delete fd.
 		if (syscall_num == SYS_close) {
