@@ -74,3 +74,11 @@ xiaoguang@fox6:~$ curl localhost:8889
 <head>
 ... ...
 ```
+
+### Compile lighttpd
+```
+-> % sudo apt-get install automake autoconf libtool pkg-config
+popcorn@arm [02:01:49 AM] [~/mvx/popcorn-mvx/test/lighttpd-1.4.50] [master *]
+-> % ./config-xiaoguang.sh
+-> % make & sudo make install
+```
