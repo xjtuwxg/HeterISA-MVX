@@ -9,6 +9,7 @@
 #include <errno.h>		// errno
 #include <elf.h>		// NT_PRSTATUS
 #include <string.h>		// strerror
+#include <signal.h>		// SIGTRAP
 
 #ifdef __x86_64__
 #include <sys/reg.h>		// ORIG_RAX
@@ -27,20 +28,39 @@ union u {
  * */
 static inline int ptrace_syscall(pid_t pid)
 {
-        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+	if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
 		return -1;
-        if (waitpid(pid, 0, 0) == -1)
+	if (waitpid(pid, 0, 0) == -1)
 		return -2;
 	return 0;
 }
 
+/**
+ * Restart the stopped process, but arrange for the tracee to be stopped
+ * at the next entry to or exit from a syscall.
+ * */
 static inline int ptrace_syscall_status(pid_t pid, int *status)
 {
 	*status = 0;
-        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+	/* restart the child process. */
+	if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
 		return -1;
-        if (waitpid(pid, status, 0) == -1)
+	/* wait child process status change (e.g., syscall or signal). */
+	if (waitpid(pid, status, 0) == -1)
 		return -2;
+
+	/* capture the signals which cause the child to stop. */
+	if (WSTOPSIG(*status) != SIGTRAP) {
+		switch (WSTOPSIG(*status)) {
+			case SIGWINCH:
+				PRINT("Signal: resize the window. sig #%d\n", SIGWINCH);
+				break;
+			default:
+				PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
+					WSTOPSIG(*status));
+				return -3;
+		}
+	}
 	return 0;
 }
 

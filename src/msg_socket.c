@@ -191,18 +191,15 @@ void process_data(int fd)
 {
 	ssize_t cnt;
 	int ret = 0;
-	//char buf[512];
 	char buf[1024];	// limit the message size to 1024 bytes.
-	// malloc in this func but not free here, delete in "ringbuf_pop"
+
+	/* malloc in this function but not free here, free the memory in "ringbuf_pop" */
 	msg_t *new_msg = malloc(sizeof(msg_t));
 
 	/* Read the msg_t from socket fd: read 16 bytes header first, then
 	 * read the message buffer of len */
 	cnt = read(fd, buf, 16);
 	memcpy(new_msg, buf, 16);
-	//MSG_PRINT("%s:%d syscall %d, len %u, flag %d, ret 0x%lx. cnt %lu\n",
-	//	  __FILE__, __LINE__, new_msg->syscall, new_msg->len,
-	//	  new_msg->flag, new_msg->retval, cnt);
 
 	if (new_msg->len > 0) {
 		cnt = read(fd, buf, new_msg->len);
@@ -211,8 +208,7 @@ void process_data(int fd)
 	} else {
 		new_msg->buf[0] = 0;
 	}
-	//MSG_PRINT("%s:%s: msg: %s, cnt: %lu\n", __FILE__, __func__,
-	//	  new_msg->buf, cnt);
+
 	/* Add msg to ring buffer */
 	ret = ringbuf_add(ringbuf, new_msg);
 	mvx_assert(ret != -1, "Ring buffer full. ");

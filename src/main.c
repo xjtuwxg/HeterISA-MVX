@@ -9,7 +9,6 @@
 
 /* POSIX */
 #include <unistd.h>
-#include <signal.h>		// SIGTRAP
 #include <sys/user.h>		// struct user_regs_struct
 #include <sys/wait.h>
 
@@ -30,7 +29,6 @@
 #include "common.h"		// likely, unlikely
 #include "config.h"		// IP_SERVER
 
-//char arch[24];
 /**
  * Main function for multi-ISA MVX
  * Use: ./mvx_monitor <executable> <args>
@@ -76,13 +74,10 @@ int main(int argc, char **argv)
 	int terminate = 0;
 	int status = 0;
 	while (!terminate) {
-		/* Enter next system call (before entering) */
+		/* => Execute the child until a system call (before entering the kernel) */
 		status = 0;
-		if (ptrace_syscall_status(pid, &status) < 0)
+		if (ptrace_syscall_status(pid, &status) < 0) {
 			FATAL("PTRACE_SYSCALL error 1: %s.", strerror(errno));
-		if (WSTOPSIG(status) != SIGTRAP) {
-			PRINT("Not a sigtrap (%d). See \"man 7 signal\".\n",
-			      WSTOPSIG(status));
 			break;
 		}
 
@@ -102,7 +97,8 @@ int main(int argc, char **argv)
 		follower_wait_pre_syscall(pid, syscall_num, args,
 					  &skip_post_handling);
 #endif
-		/* Run system call and stop on exit (after syscall return) */
+
+		/* => Run the system call and stop on exit (after syscall return) */
 		if (ptrace_syscall(pid) < 0)
 			FATAL("PTRACE_SYSCALL error 2: %s.", strerror(errno));
 
@@ -127,7 +123,6 @@ int main(int argc, char **argv)
 		/* Master syncs the "user input" value to follower. */
 		master_syncpoint(pid, clientfd, syscall_num, args,
 				 syscall_retval);
-		//if (unlikely(terminate)) send_terminate_sig(clientfd);
 		if (unlikely(terminate)) send_short_msg(clientfd, 231);
 #endif
 
